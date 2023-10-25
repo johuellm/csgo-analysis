@@ -1,5 +1,4 @@
-
-#import tkinter
+# import tkinter
 import numpy as np
 import pandas as pd
 import awpy
@@ -10,7 +9,7 @@ from matplotlib import patches
 import matplotlib.pyplot as plt
 
 NAV["de_dust2"][152]
-f, ax = plot_map(map_name = "de_dust2", map_type = 'simpleradar', dark = True)
+f, ax = plot_map(map_name="de_dust2", map_type='simpleradar', dark=True)
 
 for a in NAV["de_dust2"]:
     area = NAV["de_dust2"][a]
@@ -27,8 +26,8 @@ for a in NAV["de_dust2"]:
 
 plt.show()
 
-#data_excel = pd.read_excel('2023-05-09-sheet-data.xlsx')
-#print(data_excel)
+# data_excel = pd.read_excel('2023-05-09-sheet-data.xlsx')
+# print(data_excel)
 
 
 
