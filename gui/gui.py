@@ -21,14 +21,21 @@ canvas = FigureCanvasTkAgg(vizm.fig, master=root)  # A tk.DrawingArea.
 currentRoutine = 0
 checkbuttonsPlayers = [tkinter.IntVar(value=1), tkinter.IntVar(value=0), tkinter.IntVar(value=0),
                        tkinter.IntVar(value=0), tkinter.IntVar(value=0)]
+checkbuttonShowOpponents = tkinter.IntVar()
 fmtPlayers = ['o-b', 'o-g','o-r','o-c','o-m']
+fmtOpponents = ['bisque', 'darkorange','orange','wheat','gold']
 
 # UI Events
 canvas.mpl_connect("key_press_event", lambda event: print(f"you pressed {event.key}"))
 canvas.mpl_connect("key_press_event", key_press_handler)
 
 def update_canvas():
-  global currentRoutine, checkbuttonsPlayers
+  global currentRoutine, checkbuttonsPlayers, spinbox_routineLength, spinbox_roundId,checkbuttonShowOpponents
+
+  # retrieve UI values
+  showOpponents = checkbuttonShowOpponents.get()
+  routineLength = int(spinbox_routineLength.get())
+  roundId = int(spinbox_roundId.get())
 
   # remove old patches and scatters
   for patch in vizm.axes.patches:
@@ -39,11 +46,12 @@ def update_canvas():
     line.remove()
 
   # retrieve routineId
-  routines = dm.GetAllTeamRoutines(16, Routine.ROUTINE_LENGTH)
+  routines = dm.GetAllTeamRoutines(roundId, routineLength)
   for playerId in range(5):
     if checkbuttonsPlayers[playerId].get():
-      print("%d is true" % playerId)
       vizm.DrawRoutine(routines[0].GetRoutinesPlayer(playerId)[currentRoutine], fmt=fmtPlayers[playerId])
+    if showOpponents:
+      vizm.DrawRoutine(routines[1].GetRoutinesPlayer(playerId)[currentRoutine], linestyle="-", marker="o", color=fmtOpponents[playerId])
 
   # required to update canvas and attached toolbar!
   print("RoutineId %d" % currentRoutine)
@@ -55,8 +63,10 @@ def first_frame():
   update_canvas()
 
 def next_frame():
-  global currentRoutine
-  if currentRoutine < len(dm.GetAllTeamRoutines(16, Routine.ROUTINE_LENGTH)[0].routines1) - 1:
+  global currentRoutine, spinbox_routineLength, spinbox_roundId
+  roundId = int(spinbox_roundId.get())
+  routineLength = int(spinbox_routineLength.get())
+  if currentRoutine < len(dm.GetAllTeamRoutines(roundId, routineLength)[0].routines1) - 1:
     currentRoutine = currentRoutine + 1
     update_canvas()
 
@@ -67,8 +77,10 @@ def previous_frame():
     update_canvas()
 
 def last_frame():
-  global currentRoutine
-  currentRoutine = len(dm.GetAllTeamRoutines(16, Routine.ROUTINE_LENGTH)[0].routines1) - 1
+  global currentRoutine, spinbox_routineLength, spinbox_roundId
+  roundId = int(spinbox_roundId.get())
+  routineLength = int(spinbox_routineLength.get())
+  currentRoutine = len(dm.GetAllTeamRoutines(roundId, routineLength)[0].routines1) - 1
   update_canvas()
 
 # UI Layout
@@ -76,8 +88,10 @@ def last_frame():
 # is no space left, because the window is too small, they are not displayed.
 # The canvas is rather flexible in its size, so we pack it last which makes
 # sure the UI controls are displayed as long as possible.
+routine_settings_frame = tkinter.Frame(master=root)
 players_frame = tkinter.Frame(master=root)
 buttons_frame = tkinter.Frame(master=root)
+routine_settings_frame.pack(side=tkinter.BOTTOM)
 players_frame.pack(side=tkinter.BOTTOM)
 buttons_frame.pack(side=tkinter.BOTTOM)
 
@@ -100,6 +114,13 @@ checkbutton_p4.pack(side=tkinter.RIGHT)
 checkbutton_p3.pack(side=tkinter.RIGHT)
 checkbutton_p2.pack(side=tkinter.RIGHT)
 checkbutton_p1.pack(side=tkinter.RIGHT)
+
+spinbox_routineLength = tkinter.Spinbox(master=routine_settings_frame, from_=1, to=20)
+spinbox_roundId = tkinter.Spinbox(master=routine_settings_frame, from_=1, to=30)
+checkbutton_showOpponents = tkinter.Checkbutton(master=routine_settings_frame, text="Show Opponents", variable=checkbuttonShowOpponents)
+checkbutton_showOpponents.pack(side=tkinter.RIGHT)
+spinbox_routineLength.pack(side=tkinter.RIGHT)
+spinbox_roundId.pack(side=tkinter.RIGHT)
 
 canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=True)
 

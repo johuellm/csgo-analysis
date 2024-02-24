@@ -16,7 +16,7 @@ class VisualisationManager:
     self.fig, self.axes = plot_map(map_name=self.map, map_type="simpleradar", dark=True)
     return self.fig, self.axes
 
-  def DrawRoutine(self, routine: Routine.Routine, fmt='o-r'):
+  def DrawRoutine(self, routine: Routine.Routine, fmt='o-r', **kwargs):
     # alternative: position_transform_all
     transformed_x = [
       position_transform(self.map, xpos, "x")
@@ -28,7 +28,7 @@ class VisualisationManager:
     ]
     # self.axes.scatter(transformed_x, transformed_y, s=2)
     # self.axes = self.axes.plot(transformed_x, transformed_y, 'o-r')
-    self.axes.plot(transformed_x, transformed_y, fmt)
+    self.axes.plot(transformed_x, transformed_y, fmt, **kwargs)
     return self.axes
 
   def DrawTeamRoutine(self, timepoint: int, team):
