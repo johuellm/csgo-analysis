@@ -19,6 +19,27 @@ class DataManager:
   def GetMap(self):
     return self.data["mapName"]
 
+  def GetPlayerRoutine(self, playerId: int, roundId: int, routineLength: int, frameId: int):
+    frames = self.GetGameRound(roundId)["frames"]
+    firstFrameId = frameId - routineLength
+    if firstFrameId < 0:
+      firstFrameId = 0
+    chunkFrames = frames[firstFrameId:frameId]
+
+    x, y = zip(*[(chunkFrame["t"]["players"][playerId]["x"],chunkFrame["t"]["players"][playerId]["y"]) for chunkFrame in chunkFrames])
+    return Routine.Routine(x,y)
+
+  def GetPlayerAlive(self, playerId: int, roundId: int, frameId: int):
+    return self.GetGameRound(roundId)["frames"][frameId]["t"]["players"][playerId]["isAlive"]
+
+  def GetTeamRoutine(self, roundId: int, routineLength: int, frameId: int):
+    pass
+
+
+  def GetNumberRoutines(self, roundId: int, routineLength: int):
+    pass
+
+
   def GetAllTeamRoutines(self, roundId: int, routineLength: int):
     frames = self.GetGameRound(roundId)["frames"]
     frameChunks = np.split(frames, np.arange(routineLength, len(frames), routineLength))
