@@ -24,6 +24,7 @@ checkbuttonsPlayers = [tkinter.IntVar(value=1), tkinter.IntVar(value=0), tkinter
 checkbuttonShowOpponents = tkinter.IntVar()
 fmtPlayers = ['o-b', 'o-g','o-r','o-c','o-m']
 fmtOpponents = ['bisque', 'darkorange','orange','wheat','gold']
+labelRoundStats = tkinter.StringVar()
 
 # UI Events
 canvas.mpl_connect("key_press_event", lambda event: print(f"you pressed {event.key}"))
@@ -48,10 +49,14 @@ def update_canvas():
   # retrieve routineId
   routines = dm.GetAllTeamRoutines(roundId, routineLength)
   for playerId in range(5):
-    if checkbuttonsPlayers[playerId].get():
+    if checkbuttonsPlayers[playerId].get() and dm.GetPlayerAlive(playerId, "t", roundId, currentRoutine*routineLength):
       vizm.DrawRoutine(routines[0].GetRoutinesPlayer(playerId)[currentRoutine], fmt=fmtPlayers[playerId])
-    if showOpponents:
+    if showOpponents  and dm.GetPlayerAlive(playerId, "ct", roundId, currentRoutine*routineLength):
       vizm.DrawRoutine(routines[1].GetRoutinesPlayer(playerId)[currentRoutine], linestyle="-", marker="o", color=fmtOpponents[playerId])
+
+  # update roundStats
+  roundStats = dm.GetRoundStats(roundId, currentRoutine*routineLength)
+  update_roundstats(roundStats)
 
   # required to update canvas and attached toolbar!
   print("RoutineId %d" % currentRoutine)
@@ -83,6 +88,21 @@ def last_frame():
   currentRoutine = len(dm.GetAllTeamRoutines(roundId, routineLength)[0].routines1) - 1
   update_canvas()
 
+def update_roundstats(roundstats):
+  labelRoundStats.set(("Round Winner %s, Reason: %s\n" % (roundstats.winningSide, roundstats.roundEndReason)) +
+             ("Players 1: hp=%d, alive=%s, weapon=%s, equipment=%d\n"
+              % (roundstats.players[0].hp, roundstats.players[0].alive, roundstats.players[0].activeWeapon, roundstats.players[0].equipmentValue)) +
+             ("Players 2: hp=%d, alive=%s, weapon=%s, equipment=%d\n"
+              % (roundstats.players[1].hp, roundstats.players[1].alive, roundstats.players[1].activeWeapon, roundstats.players[1].equipmentValue)) +
+             ("Players 3: hp=%d, alive=%s, weapon=%s, equipment=%d\n"
+              % (roundstats.players[2].hp, roundstats.players[2].alive, roundstats.players[2].activeWeapon, roundstats.players[2].equipmentValue)) +
+             ("Players 4: hp=%d, alive=%s, weapon=%s, equipment=%d\n"
+              % (roundstats.players[3].hp, roundstats.players[3].alive, roundstats.players[3].activeWeapon, roundstats.players[3].equipmentValue)) +
+             ("Players 5: hp=%d, alive=%s, weapon=%s, equipment=%d\n"
+              % (roundstats.players[4].hp, roundstats.players[4].alive, roundstats.players[4].activeWeapon, roundstats.players[4].equipmentValue)) +
+             ("Opponents: alivePlayers=%d, equipment=%d")
+              % (roundstats.opponentsAlive, roundstats.opponentEquipmentValue))
+
 # UI Layout
 # Packing order is important. Widgets are processed sequentially and if there
 # is no space left, because the window is too small, they are not displayed.
@@ -91,10 +111,13 @@ def last_frame():
 routine_settings_frame = tkinter.Frame(master=root)
 players_frame = tkinter.Frame(master=root)
 buttons_frame = tkinter.Frame(master=root)
+roundstats_frame = tkinter.LabelFrame(master=root, text="Round Stats")
+roundstats_frame.pack(side=tkinter.BOTTOM, fill=tkinter.X)
 routine_settings_frame.pack(side=tkinter.BOTTOM)
 players_frame.pack(side=tkinter.BOTTOM)
 buttons_frame.pack(side=tkinter.BOTTOM)
 
+# buttons frame
 button_first = tkinter.Button(master=buttons_frame, text="First", command=first_frame)
 button_next = tkinter.Button(master=buttons_frame, text="Next", command=next_frame)
 button_previous = tkinter.Button(master=buttons_frame, text="Previous", command=previous_frame)
@@ -104,6 +127,7 @@ button_next.pack(side=tkinter.RIGHT)
 button_previous.pack(side=tkinter.RIGHT)
 button_first.pack(side=tkinter.RIGHT)
 
+# players frame
 checkbutton_p5 = tkinter.Checkbutton(master=players_frame, text="Player5", variable=checkbuttonsPlayers[4])
 checkbutton_p4 = tkinter.Checkbutton(master=players_frame, text="Player4", variable=checkbuttonsPlayers[3])
 checkbutton_p3 = tkinter.Checkbutton(master=players_frame, text="Player3", variable=checkbuttonsPlayers[2])
@@ -115,6 +139,7 @@ checkbutton_p3.pack(side=tkinter.RIGHT)
 checkbutton_p2.pack(side=tkinter.RIGHT)
 checkbutton_p1.pack(side=tkinter.RIGHT)
 
+# routine settings frame
 spinbox_routineLength = tkinter.Spinbox(master=routine_settings_frame, from_=1, to=20)
 spinbox_roundId = tkinter.Spinbox(master=routine_settings_frame, from_=1, to=30)
 checkbutton_showOpponents = tkinter.Checkbutton(master=routine_settings_frame, text="Show Opponents", variable=checkbuttonShowOpponents)
@@ -122,6 +147,12 @@ checkbutton_showOpponents.pack(side=tkinter.RIGHT)
 spinbox_routineLength.pack(side=tkinter.RIGHT)
 spinbox_roundId.pack(side=tkinter.RIGHT)
 
+# roundstats frame
+label_roundstats = tkinter.Label(master=roundstats_frame, textvariable=labelRoundStats, anchor="nw", justify=tkinter.LEFT)
+label_roundstats.pack(fill=tkinter.BOTH, expand=True)
+
+
+# put everything together
 canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=True)
 
 update_canvas()
