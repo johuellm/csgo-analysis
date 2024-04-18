@@ -4,7 +4,7 @@ import json
 from pydantic import TypeAdapter, ValidationError
 from models.player import Player
 from models.round_stats import RoundStats
-from models.team import Team
+from models.team import BothTeams, Team
 from models.team_type import TeamType
 from models.routine import FrameCount, Routine
 from typing import Generator 
@@ -141,8 +141,8 @@ class DataManager:
         frame = self.get_frame(round_index, frame_index)
         return self.__get_players_from_team_from_frame(frame, team)
 
-    def get_all_team_routines(self, round_index: int, routine_length: FrameCount) -> tuple[Team, Team]:
-        """Returns the routines for all players on both teams in the given round in the form of two Team objects."""
+    def get_all_team_routines(self, round_index: int, routine_length: FrameCount) -> BothTeams:
+        """Returns the routines for all players on both teams in the given round in the form of a BothTeams object."""
         frames = self.__get_frames(round_index)
 
         def batch_frames(frames: list[GameFrame], chunk_size: int) -> Generator[list[GameFrame], None, None]:
@@ -166,5 +166,8 @@ class DataManager:
                     ct_side_routines[player['name']][-1].add_point(player['x'], player['y'])
         t_side = Team.from_routines_list(list(t_side_routines.values()))
         ct_side = Team.from_routines_list(list(ct_side_routines.values()))
-        return t_side, ct_side
+        return BothTeams(
+            t_side=t_side,
+            ct_side=ct_side
+        )
                 

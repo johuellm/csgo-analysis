@@ -17,3 +17,8 @@ class Team:
         if player_index < 0 or player_index >= 5:
             raise ValueError(f"Invalid player index {player_index} received when accessing routines in Team object - must be between 0 and 4 inclusive.")
         return self.routines[player_index]
+
+@dataclass
+class BothTeams:
+    t_side: Team
+    ct_side: Team
