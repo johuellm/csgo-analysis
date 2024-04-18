@@ -9,6 +9,9 @@ from models.team_type import TeamType
 from models.routine import FrameCount, Routine
 from typing import Generator 
 
+# Path to a demo file for testing
+EXAMPLE_DEMO_PATH = Path(__file__).parent / '../../demos/esta/0013db25-4444-452b-980b-7702dc6fb810.json'
+
 # For validating JSON data as a Game object
 game_validator = TypeAdapter(Game)
 # This function exists outside of DataManager in case we want to use it elsewhere
