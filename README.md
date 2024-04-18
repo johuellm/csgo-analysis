@@ -7,6 +7,8 @@
 
 Make sure the versions of Python and Go mentioned above are installed.
 
+It is recommended to [create and activate a virtual environment](https://docs.python.org/3/tutorial/venv.html).
+
 `pip install -r requirements.txt`
 
 ## Usage
