@@ -25,7 +25,7 @@ class VisualizationManager:
         return cls(fig, axes, map_name)
 
     def render(self):
-        """Render the map."""
+        """Render the map. Primarily for use in CLI contexts."""
         self.fig.show()
 
     def draw_routine(self, routine: Routine, fmt: str | None = None, **kwargs) -> Axes:
