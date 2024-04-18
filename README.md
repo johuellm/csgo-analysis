@@ -1,5 +1,5 @@
 # csgo-demo-visualizer
- Visualizing CS:GO demos for analysis purposes.
+ Visualizing CS:GO demos for analysis purposes. A rework of this [csgo-analysis](https://github.com/samihan-m/csgo-analysis) [fork](https://github.com/johuellm/csgo-analysis) by [@johuellm](https://github.com/johuellm).
 
  Developed in Python `3.11.9` and Go `1.22.2`.
 
@@ -8,6 +8,10 @@
 Make sure the versions of Python and Go mentioned above are installed.
 
 `pip install -r requirements.txt`
+
+## Usage
+
+🚧🚧 Still under construction. 🚧🚧
 
 ## Updating dependencies
 
