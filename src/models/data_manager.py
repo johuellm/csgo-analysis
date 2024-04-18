@@ -8,6 +8,9 @@ from models.team import Team
 from models.team_type import TeamType
 from models.routine import FrameCount, Routine
 from typing import Generator 
+from logging import Logger
+
+data_manager_logger = Logger("DataManager")
 
 # Path to a demo file for testing
 EXAMPLE_DEMO_PATH = Path(__file__).parent / '../../demos/esta/0013db25-4444-452b-980b-7702dc6fb810.json'
@@ -22,6 +25,7 @@ def _load_game_data(file_path: Path, do_validate: bool = True) -> Game:
             data = json.load(file)
             if do_validate:
                 return game_validator.validate_python(data)
+            data_manager_logger.warn('Demo data was not validated against the Game schema on load. This may cause issues later on.')
             return data
         except ValidationError as e:
             # TODO: Maybe handle this better
