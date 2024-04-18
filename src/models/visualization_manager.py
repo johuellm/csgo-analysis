@@ -28,7 +28,7 @@ class VisualizationManager:
         """Render the map. Primarily for use in CLI contexts."""
         self.fig.show()
 
-    def draw_routine(self, routine: Routine, fmt: str | None = None, **kwargs) -> Axes:
+    def draw_routine(self, routine: Routine, fmt: str = "", **kwargs) -> Axes:
         """Draws a routine on the map. `fmt` is a format string following matplotlib fmt string notation, and kwargs can be used to add additional format options."""
 
         transformed_x = [position_transform(self.map, xpos, 'x') for xpos in routine.x]
