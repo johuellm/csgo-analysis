@@ -12,11 +12,14 @@ from typing import Generator
 # For validating JSON data as a Game object
 game_validator = TypeAdapter(Game)
 # This function exists outside of DataManager in case we want to use it elsewhere
-def __load_game_data(file_path: Path) -> Game:
+def _load_game_data(file_path: Path, do_validate: bool = True) -> Game:
+    """Loads a JSON file containing a Game object. If `do_validate` is True, the data will be validated against the Game schema."""
     with open(file_path, 'r') as file:
         try:
             data = json.load(file)
-            return game_validator.validate_python(data)
+            if do_validate:
+                return game_validator.validate_python(data)
+            return data
         except ValidationError as e:
             # TODO: Maybe handle this better
             raise e
@@ -28,9 +31,9 @@ class DataManager:
         self.data = data
 
     @classmethod
-    def from_file(cls, file_path: Path):
-        """Create a DataManager object from a JSON file containing a Game."""
-        return cls(__load_game_data(file_path))
+    def from_file(cls, file_path: Path, do_validate: bool = True):
+        """Create a DataManager object from a JSON file containing a Game. If `do_validate` is True, the data will be validated against the Game schema."""
+        return cls(_load_game_data(file_path, do_validate))
     
     def __get_game_rounds(self) -> list[GameRound]:
         """Returns the list of GameRound objects in the Game object. If there are no game rounds, raises a ValueError."""
