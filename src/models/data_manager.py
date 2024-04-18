@@ -6,8 +6,8 @@ from models.player import Player
 from models.round_stats import RoundStats
 from models.team import Team
 from models.team_type import TeamType
-from models.routine import Routine
-from typing import Generator, NewType
+from models.routine import FrameCount, Routine
+from typing import Generator 
 
 # For validating JSON data as a Game object
 game_validator = TypeAdapter(Game)
@@ -20,10 +20,6 @@ def __load_game_data(file_path: Path) -> Game:
         except ValidationError as e:
             # TODO: Maybe handle this better
             raise e
-
-# This NewType exists to make sure we don't pass any kind of number in for FrameCount.
-# When creating a value of type FrameCount, we must be expressly aware that this variable we're making represents a frame count.
-FrameCount = NewType('FrameCount', int)
 
 class DataManager:
     data: Game

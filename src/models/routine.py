@@ -1,6 +1,11 @@
 from dataclasses import dataclass, field
+from typing import NewType
 
-DEFAULT_ROUTINE_LENGTH = 5
+# This NewType exists to make sure we don't pass any kind of number in for FrameCount.
+# When creating a value of type FrameCount, we must be expressly aware that this variable we're making represents a frame count.
+FrameCount = NewType('FrameCount', int)
+
+DEFAULT_ROUTINE_LENGTH = FrameCount(5)
 
 @dataclass
 class Routine:

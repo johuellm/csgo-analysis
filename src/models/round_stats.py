@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from models.data_manager import TeamType
-from player import Player
+from models.team_type import TeamType
+from models.player import Player
 
 @dataclass
 class RoundStats:
