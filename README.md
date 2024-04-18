@@ -13,6 +13,10 @@ Make sure the versions of Python and Go mentioned above are installed.
 
 🚧🚧 Still under construction. 🚧🚧
 
+A limited glimpse of functionality can be seen by running the `cli.py` file. For example, if your current working directory is the root of the project:
+
+`python src/cli.py`
+
 ## Updating dependencies
 
 I used `pip-tools` to produce a `requirements.txt` file with exact versions of all dependencies pinned and hashed. This is to better ensure that a `pip install` to reproduce the environment doesn't fetch a different version of a dependency without our express intent.
