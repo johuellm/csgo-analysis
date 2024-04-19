@@ -19,6 +19,10 @@ A limited glimpse of functionality can be seen by running the `cli.py` file. For
 
 `python src/cli.py`
 
+The Tkinter application (very much under construction) can be run via the `gui.py` file. For example, if your current working directory is the root of the project:
+
+`python src/gui.py`
+
 ## Updating dependencies
 
 I used `pip-tools` to produce a `requirements.txt` file with exact versions of all dependencies pinned and hashed. This is to better ensure that a `pip install` to reproduce the environment doesn't fetch a different version of a dependency without our express intent.
