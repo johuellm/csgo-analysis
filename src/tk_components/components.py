@@ -1,3 +1,4 @@
+import functools
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog
@@ -17,6 +18,7 @@ class MainApplication(tk.Frame):
     vm: VisualizationManager | None
     top_bar_menu: 'TopBarMenu'
     canvas: 'CanvasPanel'
+    round_select_bar: 'RoundSelectBar'
 
     def __init__(self, root: tk.Tk, *args, **kwargs):
         tk.Frame.__init__(self, root, *args, **kwargs)
@@ -28,10 +30,20 @@ class MainApplication(tk.Frame):
         self.top_bar_menu = TopBarMenu(self.root, self)
         self.top_bar_menu.pack(side='top', fill='x')
 
-        self.canvas = CanvasPanel(self, self)
+        self.canvas = CanvasPanel(self)
         self.canvas.pack(side='top', fill='both', expand=True)
 
+        self.round_select_bar = RoundSelectBar(self)
+        self.round_select_bar.pack(side='bottom', fill='x')
+
         self.pack(side='top', fill='both', expand=True)
+    
+    def load_file_and_reload(self, file_path: Path):
+        """Re-initializes the DataManager, VisualizationManager, and relevant components after a new file is loaded."""
+        self.dm = DataManager.from_file(file_path, do_validate=False)
+        self.vm = VisualizationManager.from_data_manager(self.dm)
+        self.canvas.draw_current_map()
+        self.round_select_bar.update_round_list()
     
     def exit(self):
         """Exits the application."""
@@ -68,9 +80,7 @@ class TopBarMenu(tk.Frame):
         if file_path == ".":
             # User cancelled the file dialog
             return
-        self.main_app.dm = DataManager.from_file(file_path, do_validate=False)
-        self.main_app.vm = VisualizationManager.from_map(self.main_app.dm.get_map_name())
-        self.main_app.canvas.draw_current_map()
+        self.main_app.load_file_and_reload(file_path) 
 
 class CanvasPanel(tk.Frame):
     """Panel for displaying plots."""
@@ -97,8 +107,52 @@ class CanvasPanel(tk.Frame):
     def draw_current_map(self):
         """Ensures there is a map loaded in the VisualizationManager and then draws it."""
         if self.parent.vm is None:
-            raise ValueError('No map loaded in the VisualizationManager.')
+            raise ValueError('VisualizationManager not initialized.')
         # Remove the current canvas before creating the new one so there aren't two
         self.canvas.get_tk_widget().destroy()
         self.canvas = FigureCanvasTkAgg(self.parent.vm.fig, self)
         self.__prep_canvas_widget()
+    
+    def draw_round(self, round_number: int):
+        """Draws the map at the start of the given round number."""
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.parent.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        self.parent.vm.draw_round_start(round_number)
+        self.canvas.draw()
+
+# TODO: Re-create more Noesis functionality.
+# 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
+# 2. A bar on the right that has a list of players. Each entry has their hp, armor, name, weapon, money, utility, and secondary. The HP is also visualized as a a bar (colored with the team color) that is filled in proportion to the player's HP.
+# 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
+
+class RoundSelectBar(tk.Frame):
+    """A bar that displays a list of the round numbers from the selected demo. Selecting a round number shows the start of that round on the plot."""
+    parent: MainApplication
+
+    def __init__(self, parent: MainApplication, *args, **kwargs):
+        tk.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+
+        # Create GUI here
+        self.__create_round_buttons()
+
+        self.pack(side='top', fill='x')
+    
+    def __create_round_buttons(self):
+        """Creates buttons for each round in the selected demo. If no demo is selected, creates a dummy set of 25 disabled buttons."""
+        round_count = 25 if self.parent.dm is None else self.parent.dm.get_round_count()
+        button_state = 'disabled' if self.parent.dm is None else 'normal'
+        for round_index in range(round_count):
+            # Add a button for each round
+            round_number = round_index + 1
+            round_button = tk.Button(self, text=f'{round_number}', command=functools.partial(self.parent.canvas.draw_round, round_index), state=button_state)
+            round_button.pack(side='left')
+        self.pack(side='top', fill='x')
+    
+    def update_round_list(self):
+        """Updates the list of round buttons."""
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.__create_round_buttons()

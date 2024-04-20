@@ -4,7 +4,7 @@ from models.visualization_manager import VisualizationManager
 
 def main():
     dm = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
-    vizm = VisualizationManager.from_map(dm.get_map_name())
+    vizm = VisualizationManager.from_data_manager(dm)
 
     team_routines = dm.get_all_team_routines(16, DEFAULT_ROUTINE_LENGTH)
     t_side_player_one_routines = team_routines.t_side.routines[0]
