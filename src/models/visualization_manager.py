@@ -3,6 +3,7 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from awpy.visualization.plot import plot_map, position_transform
 from matplotlib.lines import Line2D
+from matplotlib.text import Text
 
 from models.data_manager import DataManager
 from models.routine import Routine
@@ -14,6 +15,7 @@ class VisualizationManager:
     axes: Axes
     lines: list[Line2D] # Tracks lines for precise removal
     path_collections: list[PathCollection] # Tracks scatter plot points for precise removal
+    text: list[Text] # Tracks text for precise removal
 
     def __init__(self, dm: DataManager, fig: Figure, axes: Axes):
         self.dm = dm
@@ -21,6 +23,7 @@ class VisualizationManager:
         self.axes = axes
         self.lines = list()
         self.path_collections = list()
+        self.text = list()
     
     @classmethod
     def from_data_manager(cls, dm: DataManager) -> 'VisualizationManager':
@@ -56,9 +59,12 @@ class VisualizationManager:
         for collection in self.path_collections:
             collection.remove()
         self.path_collections.clear()
+        for text in self.text:
+            text.remove()
+        self.text.clear()
     
     def draw_round_start(self, round_index: int) -> Axes:
-        """Draws the positions of players at the start of a round. Raises a ValueError if the round index is out of bounds."""
+        """Draws the positions of players at the start of a round. Player names are drawn slightly above their corresponding markers. Raises a ValueError if the round index is out of bounds."""
         round_count = self.dm.get_round_count()
         if round_index > round_count - 1:
             raise ValueError(f"Round index {round_index} out of bounds (max index is {round_count - 1})")
@@ -73,11 +79,14 @@ class VisualizationManager:
 
         transformed_t_x = [position_transform(map_name, player['x'], 'x') for player in t_side_players]
         transformed_t_y = [position_transform(map_name, player['y'], 'y') for player in t_side_players]
-
         self.path_collections.append(self.axes.scatter(transformed_t_x, transformed_t_y, c='goldenrod'))
+        for index, player in enumerate(t_side_players):
+            self.text.append(self.axes.text(transformed_t_x[index], transformed_t_y[index], player['name'], fontsize=10, ha='center', va='bottom', color='white'))
 
         transformed_ct_x = [position_transform(map_name, player['x'], 'x') for player in ct_side_players]
         transformed_ct_y = [position_transform(map_name, player['y'], 'y') for player in ct_side_players]
-
         self.path_collections.append(self.axes.scatter(transformed_ct_x, transformed_ct_y, c='lightblue'))
+        for index, player in enumerate(ct_side_players):
+            self.text.append(self.axes.text(transformed_ct_x[index], transformed_ct_y[index], player['name'], fontsize=10, ha='center', va='bottom', color='white'))
+
         return self.axes
