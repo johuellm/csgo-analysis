@@ -19,6 +19,7 @@ class MainApplication(tk.Frame):
     top_bar_menu: 'TopBarMenu'
     canvas: 'CanvasPanel'
     round_select_bar: 'RoundSelectBar'
+    timeline_bar: 'TimelineBar'
 
     def __init__(self, root: tk.Tk, *args, **kwargs):
         tk.Frame.__init__(self, root, *args, **kwargs)
@@ -33,6 +34,9 @@ class MainApplication(tk.Frame):
         self.canvas = CanvasPanel(self)
         self.canvas.pack(side='top', fill='both', expand=True)
 
+        self.timeline_bar = TimelineBar(self)
+        self.timeline_bar.pack(side='bottom', fill='x')
+        
         self.round_select_bar = RoundSelectBar(self)
         self.round_select_bar.pack(side='bottom', fill='x')
 
@@ -44,6 +48,7 @@ class MainApplication(tk.Frame):
         self.vm = VisualizationManager.from_data_manager(self.dm)
         self.canvas.draw_current_map()
         self.round_select_bar.update_round_list()
+        self.timeline_bar.reload_play_button()
     
     def exit(self):
         """Exits the application."""
@@ -87,9 +92,12 @@ class CanvasPanel(tk.Frame):
     parent: MainApplication
     canvas: FigureCanvasTkAgg
 
+    _do_play_visualization: bool
+
     def __init__(self, parent: MainApplication, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
+        self._do_play_visualization = False
 
         # Create GUI here
         default_figure, _ = plot_map(map_type='simpleradar')
@@ -113,14 +121,40 @@ class CanvasPanel(tk.Frame):
         self.canvas = FigureCanvasTkAgg(self.parent.vm.fig, self)
         self.__prep_canvas_widget()
     
-    def draw_round(self, round_number: int):
+    def draw_round(self, round_index: int):
         """Draws the map at the start of the given round number."""
         if self.parent.dm is None:
             raise ValueError('DataManager not initialized.')
         if self.parent.vm is None:
             raise ValueError('VisualizationManager not initialized.')
-        self.parent.vm.draw_round_start(round_number)
+        self.parent.vm.draw_round_start(round_index)
         self.canvas.draw()
+    
+    def play_visualization(self):
+        """Plays the visualization."""
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.parent.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        self._do_play_visualization = True
+        self._tick_visualization()
+    
+    def _tick_visualization(self):
+        """Progresses the visualization by one frame."""
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.parent.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+
+        self.parent.vm.progress_visualization()
+        self.canvas.draw()
+        if self._do_play_visualization:
+            self.parent.root.after(500, self._tick_visualization)
+    
+    def pause_visualization(self):
+        """Pauses the visualization."""
+        self._do_play_visualization = False
 
 # TODO: Re-create more Noesis functionality.
 # 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
@@ -136,11 +170,11 @@ class RoundSelectBar(tk.Frame):
         self.parent = parent
 
         # Create GUI here
-        self.__create_round_buttons()
+        self._create_round_buttons()
 
         self.pack(side='top', fill='x')
     
-    def __create_round_buttons(self):
+    def _create_round_buttons(self):
         """Creates buttons for each round in the selected demo. If no demo is selected, creates a dummy set of 25 disabled buttons."""
         round_count = 25 if self.parent.dm is None else self.parent.dm.get_round_count()
         button_state = 'disabled' if self.parent.dm is None else 'normal'
@@ -155,4 +189,48 @@ class RoundSelectBar(tk.Frame):
         """Updates the list of round buttons."""
         for widget in self.winfo_children():
             widget.destroy()
-        self.__create_round_buttons()
+        self._create_round_buttons()
+
+class TimelineBar(tk.Frame):
+    """A bar that displays a scrubbable timeline with markers for events that happened during the round."""
+    parent: MainApplication
+
+    def __init__(self, parent: MainApplication, *args, **kwargs):
+        tk.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+
+        # Create GUI here
+
+        # Play button
+        self._create_play_button()
+
+        self.pack(side='top', fill='x')
+    
+    def call_play_visualization(self):
+        """Tells the CanvasPanel to play the visualization and replaces the play button with a pause button."""
+        self.parent.canvas.play_visualization()
+        self.reload_play_button(create_pause_button=True)
+
+    def call_pause_visualization(self):
+        """Tells the CanvasPanel to pause the visualization and replaces the pause button with a play button."""
+        self.parent.canvas.pause_visualization()
+        self.reload_play_button()
+
+    def _create_play_button(self):
+        """Creates the play button."""
+        play_button = tk.Button(self, text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
+        play_button.pack(side='left', fill='x', expand=True)
+    
+    def _create_pause_button(self):
+        """Creates the pause button."""
+        pause_button = tk.Button(self, text='Pause', command=self.call_pause_visualization)
+        pause_button.pack(side='left', fill='x', expand=True)
+    
+    def reload_play_button(self, create_pause_button: bool = False):
+        """Reloads the play button."""
+        for widget in self.winfo_children():
+            widget.destroy()
+        if create_pause_button:
+            self._create_pause_button()
+        else:
+            self._create_play_button()

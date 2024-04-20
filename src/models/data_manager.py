@@ -60,26 +60,30 @@ class DataManager:
             raise ValueError(f"Round index {round_index} out of bounds (max index is {len(rounds) - 1})")
         return rounds[round_index]
     
-    def _get_frames(self, round_id: int) -> list[GameFrame]:
+    def get_frame_count(self, round_index: int) -> int:
+        """Returns the number of frames in the given round."""
+        return len(self._get_frames(round_index))
+    
+    def _get_frames(self, round_index: int) -> list[GameFrame]:
         """Returns the list of GameFrame objects in the given round. If there are no frames in the round, raises a ValueError."""
-        round_data = self.get_game_round(round_id)
+        round_data = self.get_game_round(round_index)
         frames = round_data['frames']
         if frames is None:
             raise ValueError("No frames found in round")
         return frames
 
-    def get_frame(self, round_id: int, frame_id: int) -> GameFrame:
+    def get_frame(self, round_index: int, frame_index: int) -> GameFrame:
         """Returns the GameFrame object at the given index in the given round. If the index is out of bounds, raises a ValueError."""
-        frames = self._get_frames(round_id)
-        if frame_id >= len(frames):
-            raise ValueError(f"Frame index {frame_id} out of bounds (max index is {len(frames) - 1})")
-        return frames[frame_id]
+        frames = self._get_frames(round_index)
+        if frame_index >= len(frames):
+            raise ValueError(f"Frame index {frame_index} out of bounds (max index is {len(frames) - 1})")
+        return frames[frame_index]
     
     def get_map_name(self) -> str:
         """Returns the name of the map in the Game object."""
         return self.data['mapName']
 
-    def _get_player_info_lists(self, round_index: int, frame_index: int) -> dict[TeamType, list[PlayerInfo]]:
+    def get_player_info_lists(self, round_index: int, frame_index: int) -> dict[TeamType, list[PlayerInfo]]:
         """Returns the list of PlayerInfo objects for both teams in the given round and frame. If no player info is found for a team, raises a ValueError."""
         frame_data = self.get_frame(round_index, frame_index)
         ct_player_info_list = frame_data[TeamType.CT.value]['players']
@@ -95,7 +99,7 @@ class DataManager:
     
     def get_player_at_frame(self, player_index: int, team: TeamType, round_index: int, frame_index: int) -> PlayerInfo:
         """Returns the PlayerInfo object for the given player in the given team, round, and frame."""
-        players = self._get_player_info_lists(round_index, frame_index)[team]
+        players = self.get_player_info_lists(round_index, frame_index)[team]
         player = players[player_index] # NOTE: I don't know if the assumption that players are ordered the same every round is correct. If this is wrong, change how this is done.
         # To be fair, the old way (storing mappings from index to name, mappings which were generated in `get_all_team_routines`) also kind of relied on that assumption in that if untrue, the order of players could change across rounds and that would break the GUI.
         return player 
@@ -122,7 +126,7 @@ class DataManager:
         opponent_equipment_value = frame['ct']['teamEqVal']
 
         # T-side stats
-        players = [Player.from_player_info(player_info) for player_info in self._get_player_info_lists(round_index, frame_index)[TeamType.T]]
+        players = [Player.from_player_info(player_info) for player_info in self.get_player_info_lists(round_index, frame_index)[TeamType.T]]
 
         # TODO: Understand why the CT-side stats and the T-side stats we're storing in RoundStats are asymmetric
 
@@ -161,7 +165,7 @@ class DataManager:
             for index in range(0, frame_count, chunk_size):
                 yield frames[index:min(index + chunk_size, frame_count)]
 
-        player_info_lists = self._get_player_info_lists(round_index, 0)
+        player_info_lists = self.get_player_info_lists(round_index, 0)
         t_side_player_names = frozenset([player['name'] for player in player_info_lists[TeamType.T]])
         ct_side_player_names = frozenset([player['name'] for player in player_info_lists[TeamType.CT]])
 
@@ -182,4 +186,3 @@ class DataManager:
             t_side=t_side,
             ct_side=ct_side
         )
-                
