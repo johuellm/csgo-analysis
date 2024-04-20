@@ -148,7 +148,7 @@ class RoundSelectBar(tk.Frame):
             # Add a button for each round
             round_number = round_index + 1
             round_button = tk.Button(self, text=f'{round_number}', command=functools.partial(self.parent.canvas.draw_round, round_index), state=button_state)
-            round_button.pack(side='left')
+            round_button.pack(side='left', fill='x', expand=True)
         self.pack(side='top', fill='x')
     
     def update_round_list(self):
