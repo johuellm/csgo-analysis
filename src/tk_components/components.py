@@ -50,6 +50,7 @@ class MainApplication(ttk.Frame):
         self.canvas.draw_current_map()
         self.round_select_bar.update_round_list()
         self.timeline_bar.reload_play_button()
+        self.timeline_bar.reset_timeline_bar()
     
     def exit(self):
         """Exits the application."""
@@ -129,8 +130,13 @@ class CanvasPanel(ttk.Frame):
             raise ValueError('DataManager not initialized.')
         if self.parent.vm is None:
             raise ValueError('VisualizationManager not initialized.')
+        
+        # Draw on map canvas
         self.parent.vm.draw_round_start(round_index)
         self.canvas.draw()
+
+        # Reset timeline bar
+        self.parent.timeline_bar.reset_timeline_bar()
     
     def play_visualization(self):
         """Plays the visualization."""
@@ -149,10 +155,15 @@ class CanvasPanel(ttk.Frame):
         if self.parent.vm is None:
             raise ValueError('VisualizationManager not initialized.')
 
+        # Draw on map canvas
         self.parent.vm.progress_visualization()
         self.canvas.draw()
+
+        # Progress timeline bar
+        self.parent.timeline_bar.progress_timeline_bar(self.parent.vm.current_round_index, self.parent.vm.current_frame_index)
+
         if self._do_play_visualization:
-            self.parent.root.after(500, self._tick_visualization)
+            self.parent.root.after(50, self._tick_visualization)
     
     def pause_visualization(self):
         """Pauses the visualization."""
@@ -198,7 +209,9 @@ class RoundSelectBar(ttk.Frame):
 class TimelineBar(ttk.Frame):
     """A bar that displays a scrubbable timeline with markers for events that happened during the round."""
     parent: MainApplication
-    _button: ttk.Button
+    _play_pause_button: ttk.Button
+    _timeline_canvas: tk.Canvas
+    visualized_round_index: int | None
 
     def __init__(self, parent: MainApplication, *args, **kwargs):
         ttk.Frame.__init__(self, parent, *args, **kwargs)
@@ -228,32 +241,61 @@ class TimelineBar(ttk.Frame):
         """Creates the play button."""
         play_button = ttk.Button(self, text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
         play_button.pack(side='left', fill='y')
-        self._button = play_button
+        self._play_pause_button = play_button
     
     def reload_play_button(self, create_pause_button: bool = False):
-        """Reloads the play button."""
+        """Reloads the play button. If `create_pause_button` is True, creates a pause button instead of a play button."""
         if create_pause_button:
-            self._button.configure(text='Pause', command=self.call_pause_visualization)
+            self._play_pause_button.configure(text='Pause', command=self.call_pause_visualization)
         else:
-            self._button.configure(text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
-    
+            self._play_pause_button.configure(text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
+
     def _create_timeline_bar(self, round_index: int | None = None):
         """Creates the timeline bar."""
 
-        timeline_bar = tk.Canvas(self, height=100, bg='white', border=1, borderwidth=1)
-        timeline_bar.pack(side='left', fill='x', expand=True)
+        timeline_canvas = tk.Canvas(self, height=100, bg='white', border=0, borderwidth=0)
+        self._timeline_canvas = timeline_canvas
+        timeline_canvas.pack(side='left', fill='x', expand=True)
 
-        # If round_index is None, just create the bar and don't add any event markers
-        if round_index is None:
-            return
+        self.visualized_round_index = round_index
+        if round_index is not None:
+            self._add_event_markers(round_index)
+    
+    def _add_event_markers(self, round_index: int):
+        """Adds markers to the timeline bar for each event that happened during the round specified by `round_index`."""
+        
+        # TODO
+        # Figure out what events happened during this round and when they happened
+        # Then, add markers to the timeline bar for each event
 
+        # Also, add click functionality such that clicking on a point in the timeline bar will calculate which frame corresponds to that point and then jump to that frame in the visualization
+
+        pass 
+    
+    def reset_timeline_bar(self, round_index: int | None = None):
+        """Resets the timeline bar to its default state. If `round_index` is not None, adds event markers for the round specified by `round_index`."""
+        self._timeline_canvas.delete('all')
+        self._timeline_canvas.update()
+        if round_index is not None:
+            self._add_event_markers(round_index)
+    
+    def progress_timeline_bar(self, round_index: int, current_frame_index: int = 0):
+        """Progresses the timeline bar by one frame, calculating how far the bar needs to visually progress by calculating how many ticks happened in the round specified by `round_index`."""
         if self.parent.dm is None:
             raise ValueError('DataManager not initialized.')
         if self.parent.vm is None:
             raise ValueError('VisualizationManager not initialized.')
+        
+        # Check if the visualized round has changed, as this will require a reset of the timeline bar
+        if self.visualized_round_index != round_index:
+            self.visualized_round_index = round_index
+            self.reset_timeline_bar()
+            self._add_event_markers(round_index)
 
-        raise NotImplementedError
-    
-    def progress_timeline_bar(self):
-        """Progresses the timeline bar by one frame."""
-        raise NotImplementedError
+        total_frames_in_round = self.parent.dm.get_frame_count(round_index)
+        canvas_width = self._timeline_canvas.winfo_width()
+        pixels_per_frame = canvas_width / total_frames_in_round
+
+        # Paint the canvas up to current_frame_index * pixels_per_tick in dark gray to indicate progress
+        self._timeline_canvas.create_rectangle(0, 0, current_frame_index * pixels_per_frame, self._timeline_canvas.winfo_height(), fill='gray', tags='progress')
+        self._timeline_canvas.update()
