@@ -159,7 +159,7 @@ class CanvasPanel(ttk.Frame):
         self._do_play_visualization = False
 
 # TODO: Re-create more Noesis functionality.
-# 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
+# DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
 # 2. A bar on the right that has a list of players. Each entry has their hp, armor, name, weapon, money, utility, and secondary. The HP is also visualized as a a bar (colored with the team color) that is filled in proportion to the player's HP.
 # 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
 
@@ -196,6 +196,7 @@ class RoundSelectBar(ttk.Frame):
 class TimelineBar(ttk.Frame):
     """A bar that displays a scrubbable timeline with markers for events that happened during the round."""
     parent: MainApplication
+    _button: ttk.Button
 
     def __init__(self, parent: MainApplication, *args, **kwargs):
         ttk.Frame.__init__(self, parent, *args, **kwargs)
@@ -205,6 +206,9 @@ class TimelineBar(ttk.Frame):
 
         # Play button
         self._create_play_button()
+
+        # Timeline bar
+        self._create_timeline_bar()
 
         self.pack(side='top', fill='x')
     
@@ -221,18 +225,33 @@ class TimelineBar(ttk.Frame):
     def _create_play_button(self):
         """Creates the play button."""
         play_button = ttk.Button(self, text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
-        play_button.pack(side='left', fill='x', expand=True)
-    
-    def _create_pause_button(self):
-        """Creates the pause button."""
-        pause_button = ttk.Button(self, text='Pause', command=self.call_pause_visualization)
-        pause_button.pack(side='left', fill='x', expand=True)
+        play_button.pack(side='left', fill='y')
+        self._button = play_button
     
     def reload_play_button(self, create_pause_button: bool = False):
         """Reloads the play button."""
-        for widget in self.winfo_children():
-            widget.destroy()
         if create_pause_button:
-            self._create_pause_button()
+            self._button.configure(text='Pause', command=self.call_pause_visualization)
         else:
-            self._create_play_button()
+            self._button.configure(text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
+    
+    def _create_timeline_bar(self, round_index: int | None = None):
+        """Creates the timeline bar."""
+
+        timeline_bar = tk.Canvas(self, height=100, bg='white', border=1, borderwidth=1)
+        timeline_bar.pack(side='left', fill='x', expand=True)
+
+        # If round_index is None, just create the bar and don't add any event markers
+        if round_index is None:
+            return
+
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.parent.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+
+        raise NotImplementedError
+    
+    def progress_timeline_bar(self):
+        """Progresses the timeline bar by one frame."""
+        raise NotImplementedError
