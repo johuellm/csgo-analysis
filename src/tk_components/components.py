@@ -81,10 +81,11 @@ class TopBarMenu(tk.Frame):
     
     def open_demo_file(self):
         """Prompts user to select a .json file (ideally, this is the .json file corresponding to a CS:GO demo) and updates the main application's DataManager and VisualizationManager."""
-        file_path = Path(filedialog.askopenfilename(title='Select a CS:GO demo file', filetypes=[('JSON files', '*.json'), ('All files', '*.*')]))
-        if file_path == ".":
+        file_dialog_response = filedialog.askopenfilename(title='Select a CS:GO demo file', filetypes=[('JSON files', '*.json'), ('All files', '*.*')])
+        if file_dialog_response == "":
             # User cancelled the file dialog
             return
+        file_path = Path(file_dialog_response)
         self.main_app.load_file_and_reload(file_path) 
 
 class CanvasPanel(tk.Frame):
