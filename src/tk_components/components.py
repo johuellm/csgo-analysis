@@ -178,14 +178,16 @@ class RoundSelectBar(ttk.Frame):
     
     def _create_round_buttons(self):
         """Creates buttons for each round in the selected demo. If no demo is selected, creates a dummy set of 25 disabled buttons."""
-        round_count = 25 if self.parent.dm is None else self.parent.dm.get_round_count()
+        round_count = 31 if self.parent.dm is None else self.parent.dm.get_round_count()
         button_state = 'disabled' if self.parent.dm is None else 'normal'
         for round_index in range(round_count):
             # Add a button for each round
             round_number = round_index + 1
-            round_button = ttk.Button(self, text=f'{round_number}', command=functools.partial(self.parent.canvas.draw_round, round_index), state=button_state)
+            # If interested in using ttk.Button here, note that a row of the tk.Buttons, when resized to be smaller, will shrink all buttons equally until reaching a minimum size. After that, then higher round number buttons will be hidden.
+            # With the new ttk.Buttons, the higher round number buttons will be hidden immediately, i.e. there is no attempt to shrink all buttons equally.
+            # Fix this resizing issue if interested in using ttk.Buttons.
+            round_button = tk.Button(self, text=f'{round_number}', command=functools.partial(self.parent.canvas.draw_round, round_index), state=button_state)
             round_button.pack(side='left', fill='x', expand=True)
-        self.pack(side='top', fill='x')
     
     def update_round_list(self):
         """Updates the list of round buttons."""
