@@ -1,6 +1,7 @@
 import functools
 from pathlib import Path
 import tkinter as tk
+import tkinter.ttk as ttk
 from tkinter import filedialog
 
 from models.data_manager import DataManager
@@ -11,7 +12,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from awpy.visualization.plot import plot_map
 
-class MainApplication(tk.Frame):
+class MainApplication(ttk.Frame):
     """Parent frame for all non-root components. Must be attached to root."""
     root: tk.Tk
     dm: DataManager | None
@@ -22,7 +23,7 @@ class MainApplication(tk.Frame):
     timeline_bar: 'TimelineBar'
 
     def __init__(self, root: tk.Tk, *args, **kwargs):
-        tk.Frame.__init__(self, root, *args, **kwargs)
+        ttk.Frame.__init__(self, root, *args, **kwargs)
         self.root = root
         self.dm = None
         self.vm = None
@@ -55,13 +56,13 @@ class MainApplication(tk.Frame):
         self.root.quit()
         self.root.destroy()
 
-class TopBarMenu(tk.Frame):
+class TopBarMenu(ttk.Frame):
     """Top bar menu for the application. Must be attached to root."""
     root: tk.Tk
     main_app: MainApplication
 
     def __init__(self, root: tk.Tk, main_app: MainApplication, *args, **kwargs):
-        tk.Frame.__init__(self, root, *args, **kwargs)
+        ttk.Frame.__init__(self, root, *args, **kwargs)
         self.root = root
         self.main_app = main_app
 
@@ -88,7 +89,7 @@ class TopBarMenu(tk.Frame):
         file_path = Path(file_dialog_response)
         self.main_app.load_file_and_reload(file_path) 
 
-class CanvasPanel(tk.Frame):
+class CanvasPanel(ttk.Frame):
     """Panel for displaying plots."""
     parent: MainApplication
     canvas: FigureCanvasTkAgg
@@ -96,7 +97,7 @@ class CanvasPanel(tk.Frame):
     _do_play_visualization: bool
 
     def __init__(self, parent: MainApplication, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
+        ttk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         self._do_play_visualization = False
 
@@ -162,12 +163,12 @@ class CanvasPanel(tk.Frame):
 # 2. A bar on the right that has a list of players. Each entry has their hp, armor, name, weapon, money, utility, and secondary. The HP is also visualized as a a bar (colored with the team color) that is filled in proportion to the player's HP.
 # 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
 
-class RoundSelectBar(tk.Frame):
+class RoundSelectBar(ttk.Frame):
     """A bar that displays a list of the round numbers from the selected demo. Selecting a round number shows the start of that round on the plot."""
     parent: MainApplication
 
     def __init__(self, parent: MainApplication, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
+        ttk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
         # Create GUI here
@@ -182,7 +183,7 @@ class RoundSelectBar(tk.Frame):
         for round_index in range(round_count):
             # Add a button for each round
             round_number = round_index + 1
-            round_button = tk.Button(self, text=f'{round_number}', command=functools.partial(self.parent.canvas.draw_round, round_index), state=button_state)
+            round_button = ttk.Button(self, text=f'{round_number}', command=functools.partial(self.parent.canvas.draw_round, round_index), state=button_state)
             round_button.pack(side='left', fill='x', expand=True)
         self.pack(side='top', fill='x')
     
@@ -192,12 +193,12 @@ class RoundSelectBar(tk.Frame):
             widget.destroy()
         self._create_round_buttons()
 
-class TimelineBar(tk.Frame):
+class TimelineBar(ttk.Frame):
     """A bar that displays a scrubbable timeline with markers for events that happened during the round."""
     parent: MainApplication
 
     def __init__(self, parent: MainApplication, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
+        ttk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
         # Create GUI here
@@ -219,12 +220,12 @@ class TimelineBar(tk.Frame):
 
     def _create_play_button(self):
         """Creates the play button."""
-        play_button = tk.Button(self, text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
+        play_button = ttk.Button(self, text='Play', command=self.call_play_visualization, state='disabled' if self.parent.dm is None else 'normal')
         play_button.pack(side='left', fill='x', expand=True)
     
     def _create_pause_button(self):
         """Creates the pause button."""
-        pause_button = tk.Button(self, text='Pause', command=self.call_pause_visualization)
+        pause_button = ttk.Button(self, text='Pause', command=self.call_pause_visualization)
         pause_button.pack(side='left', fill='x', expand=True)
     
     def reload_play_button(self, create_pause_button: bool = False):
