@@ -13,6 +13,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from awpy.visualization.plot import plot_map
 
+from tk_components.imports import CanvasTooltip
+
 class MainApplication(ttk.Frame):
     """Parent frame for all non-root components. Must be attached to root."""
     root: tk.Tk
@@ -311,11 +313,15 @@ class TimelineBar(ttk.Frame):
         for event in round_events.kills:
             victim_team = TeamType.from_str(event['victimSide'] or "")
             x = int((event['tick'] - round_starting_tick) * pixels_per_tick)
-            self._timeline_canvas.create_line(x, 0, x, self._timeline_canvas.winfo_height(), fill=kill_event_color[victim_team], tags='kill-event', width=2)
+            kill_event_marker = self._timeline_canvas.create_line(x, 0, x, self._timeline_canvas.winfo_height(), fill=kill_event_color[victim_team], tags='kill-event', width=2, activewidth=3)
+            tooltip_text = f'{event["attackerName"]} killed {event["victimName"]} with {event["weapon"]}'
+            CanvasTooltip(self._timeline_canvas, kill_event_marker, text=tooltip_text) 
 
         for event in round_events.bomb_events:
             x = int((event['tick'] - round_starting_tick) * pixels_per_tick)
-            self._timeline_canvas.create_line(x, 0, x, self._timeline_canvas.winfo_height(), fill='red', tags='bomb-event', width=2)
+            bomb_event_marker = self._timeline_canvas.create_line(x, 0, x, self._timeline_canvas.winfo_height(), fill='red', tags='bomb-event', width=2, activewidth=3)
+            tooltip_text = f'Bomb action {event["bombAction"]} by {event["playerName"]}'
+            CanvasTooltip(self._timeline_canvas, bomb_event_marker, text=tooltip_text)
 
         self._timeline_canvas.update()
     
