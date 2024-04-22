@@ -257,9 +257,41 @@ class TimelineBar(ttk.Frame):
         self._timeline_canvas = timeline_canvas
         timeline_canvas.pack(side='left', fill='x', expand=True)
 
+        # Add scrubbing functionality
+        timeline_canvas.bind('<Button-1>', self._jump_to_frame) # A single click of Mouse 1
+        timeline_canvas.bind('<B1-Motion>', self._jump_to_frame) # Holding Mouse 1 down and dragging
+
         self.visualized_round_index = round_index
+
         if round_index is not None:
             self._add_event_markers(round_index)
+    
+    def _get_pixels_per_frame(self, round_index: int):
+        """Returns the number of horizontal pixels in the timeline bar canvas allocated to each frame in round specified by `round_index`."""
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+
+        total_frames_in_round = self.parent.dm.get_frame_count(round_index)
+        canvas_width = self._timeline_canvas.winfo_width()
+        return canvas_width / total_frames_in_round
+    
+    def _jump_to_frame(self, event: tk.Event):
+        """Sets the current frame of the visualization to the frame that corresponds to the point clicked on in the timeline bar. Doesn't do anything if no demo is loaded."""
+        if self.parent.dm is None:
+            return
+        if self.parent.vm is None:
+            return
+        if self.visualized_round_index is None:
+            return
+        
+        # Calculate which frame corresponds to the x-coordinate of the click
+        clicked_frame_index = int(event.x / self._get_pixels_per_frame(self.visualized_round_index))
+
+        # Jump to that frame in the visualization
+        self.parent.vm.current_frame_index = clicked_frame_index - 1 # -1 because calling progress_visualization() will increment the frame index before updating the plot
+        self.parent.vm.progress_visualization()
+        self.parent.canvas.canvas.draw()
+        self._draw_progress_bar_fill_rectangle(event.x)
     
     def _add_event_markers(self, round_index: int):
         """Adds markers to the timeline bar for each event that happened during the round specified by `round_index`."""
@@ -267,8 +299,6 @@ class TimelineBar(ttk.Frame):
         # TODO
         # Figure out what events happened during this round and when they happened
         # Then, add markers to the timeline bar for each event
-
-        # Also, add click functionality such that clicking on a point in the timeline bar will calculate which frame corresponds to that point and then jump to that frame in the visualization
 
         pass 
     
@@ -278,6 +308,11 @@ class TimelineBar(ttk.Frame):
         self._timeline_canvas.update()
         if round_index is not None:
             self._add_event_markers(round_index)
+    
+    def _draw_progress_bar_fill_rectangle(self, x: int):
+        """Draws a rectangle in the progress bar starting from the left and ending at the x-coordinate specified by `x`."""
+        self._timeline_canvas.delete('progress')
+        self._timeline_canvas.create_rectangle(0, 0, x, self._timeline_canvas.winfo_height(), fill='gray', tags='progress')
     
     def progress_timeline_bar(self, round_index: int, current_frame_index: int = 0):
         """Progresses the timeline bar by one frame, calculating how far the bar needs to visually progress by calculating how many ticks happened in the round specified by `round_index`."""
@@ -292,10 +327,7 @@ class TimelineBar(ttk.Frame):
             self.reset_timeline_bar()
             self._add_event_markers(round_index)
 
-        total_frames_in_round = self.parent.dm.get_frame_count(round_index)
-        canvas_width = self._timeline_canvas.winfo_width()
-        pixels_per_frame = canvas_width / total_frames_in_round
-
         # Paint the canvas up to current_frame_index * pixels_per_tick in dark gray to indicate progress
-        self._timeline_canvas.create_rectangle(0, 0, current_frame_index * pixels_per_frame, self._timeline_canvas.winfo_height(), fill='gray', tags='progress')
+        progress_bar_fill_length = int(current_frame_index * self._get_pixels_per_frame(round_index))
+        self._draw_progress_bar_fill_rectangle(progress_bar_fill_length)
         self._timeline_canvas.update()
