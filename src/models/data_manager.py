@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 from pydantic import TypeAdapter, ValidationError
 from models.player import Player
+from models.round_events import RoundActions
 from models.round_stats import RoundStats
 from models.team import BothTeams, Team
 from models.team_type import TeamType
@@ -185,4 +186,27 @@ class DataManager:
         return BothTeams(
             t_side=t_side,
             ct_side=ct_side
+        )
+    
+    def get_round_start_tick(self, round_index: int) -> int:
+        """Returns the tick at which the given round started."""
+        round = self.get_game_round(round_index)
+        return round['startTick']
+    
+    def get_round_tick_length(self, round_index: int) -> int:
+        """Returns the tick length of the given round."""
+        round = self.get_game_round(round_index)
+        return round['endTick'] - round['startTick']
+    
+    def get_round_events(self, round_index: int) -> RoundActions:
+        """Returns a list of events that occurred in the given round in the form of a RoundActions object."""
+        round = self.get_game_round(round_index)
+
+        return RoundActions(
+            kills = round['kills'] or [],
+            damages = round['damages'] or [],
+            grenades = round['grenades'] or [],
+            bomb_events = round['bombEvents'] or [],
+            weapon_fires = round['weaponFires'] or [],
+            flashes = round['flashes'] or []
         )

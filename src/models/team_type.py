@@ -7,9 +7,10 @@ class TeamType(Enum):
     @classmethod
     def from_str(cls, team_str: str) -> 'TeamType':
         """Converts a string to a TeamType enum, raising a ValueError if the string is not one of the valid two team types."""
-        if team_str == "ct":
+        if team_str.lower() == "ct":
             return cls.CT
-        elif team_str == "t":
+        elif team_str.lower() == "t":
             return cls.T
         else:
             raise ValueError(f"Invalid team type: {team_str}")
+    

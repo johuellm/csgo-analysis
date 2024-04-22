@@ -5,6 +5,7 @@ import tkinter.ttk as ttk
 from tkinter import filedialog
 
 from models.data_manager import DataManager
+from models.team_type import TeamType
 from models.visualization_manager import VisualizationManager
 
 from matplotlib.backend_bases import key_press_handler
@@ -136,7 +137,7 @@ class CanvasPanel(ttk.Frame):
         self.canvas.draw()
 
         # Reset timeline bar
-        self.parent.timeline_bar.reset_timeline_bar()
+        self.parent.timeline_bar.reset_timeline_bar(round_index)
     
     def play_visualization(self):
         """Plays the visualization."""
@@ -295,12 +296,28 @@ class TimelineBar(ttk.Frame):
     
     def _add_event_markers(self, round_index: int):
         """Adds markers to the timeline bar for each event that happened during the round specified by `round_index`."""
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.parent.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
         
-        # TODO
-        # Figure out what events happened during this round and when they happened
-        # Then, add markers to the timeline bar for each event
+        round_events = self.parent.dm.get_round_events(round_index)
+        round_starting_tick = self.parent.dm.get_round_start_tick(round_index)
+        pixels_per_tick = self._timeline_canvas.winfo_width() / self.parent.dm.get_round_tick_length(round_index)
 
-        pass 
+        kill_event_color: dict[TeamType, str] = {TeamType.T: 'goldenrod', TeamType.CT: 'darkblue'}
+
+        # Only drawing kill + bomb events for now
+        for event in round_events.kills:
+            victim_team = TeamType.from_str(event['victimSide'] or "")
+            x = int((event['tick'] - round_starting_tick) * pixels_per_tick)
+            self._timeline_canvas.create_line(x, 0, x, self._timeline_canvas.winfo_height(), fill=kill_event_color[victim_team], tags='kill-event', width=2)
+
+        for event in round_events.bomb_events:
+            x = int((event['tick'] - round_starting_tick) * pixels_per_tick)
+            self._timeline_canvas.create_line(x, 0, x, self._timeline_canvas.winfo_height(), fill='red', tags='bomb-event', width=2)
+
+        self._timeline_canvas.update()
     
     def reset_timeline_bar(self, round_index: int | None = None):
         """Resets the timeline bar to its default state. If `round_index` is not None, adds event markers for the round specified by `round_index`."""
@@ -313,6 +330,7 @@ class TimelineBar(ttk.Frame):
         """Draws a rectangle in the progress bar starting from the left and ending at the x-coordinate specified by `x`."""
         self._timeline_canvas.delete('progress')
         self._timeline_canvas.create_rectangle(0, 0, x, self._timeline_canvas.winfo_height(), fill='gray', tags='progress')
+        self._timeline_canvas.tag_lower('progress') # Lower the progress bar along the z-axis so that it doesn't cover the event markers
     
     def progress_timeline_bar(self, round_index: int, current_frame_index: int = 0):
         """Progresses the timeline bar by one frame, calculating how far the bar needs to visually progress by calculating how many ticks happened in the round specified by `round_index`."""
