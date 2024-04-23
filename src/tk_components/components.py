@@ -52,8 +52,13 @@ class MainApplication(ttk.Frame):
         self.vm = VisualizationManager.from_data_manager(self.dm)
         self.canvas.draw_current_map()
         self.round_select_bar.update_round_list()
+
+        if self.dm.get_round_count() < 0:
+            raise ValueError('No rounds found in the demo file.')
+
+        self.canvas.draw_round(0)
+        self.timeline_bar.reset_timeline_bar(0)
         self.timeline_bar.reload_play_button()
-        self.timeline_bar.reset_timeline_bar()
     
     def exit(self):
         """Exits the application."""
