@@ -6,6 +6,8 @@ from models.player import Player
 from models.round_events import RoundActions
 from models.round_stats import RoundStats
 from models.team import BothTeams, Team
+from models.team_names import TeamNames
+from models.team_scores import TeamScore
 from models.team_type import TeamType
 from models.routine import FrameCount, Routine
 from typing import Generator 
@@ -210,3 +212,42 @@ class DataManager:
             weapon_fires = round['weaponFires'] or [],
             flashes = round['flashes'] or []
         )
+    
+    def get_team_names(self, round_index: int) -> TeamNames:
+        """Returns the names of the two teams in the game."""
+        game_round = self.get_game_round(round_index)
+
+        ct_team_name = game_round['ctTeam']
+        if ct_team_name is None:
+            raise ValueError("No CT team name found")
+
+        t_team_name = game_round['tTeam']
+        if t_team_name is None:
+            raise ValueError("No T team name found")
+
+        return TeamNames(
+            ct_team_name=ct_team_name,
+            t_team_name=t_team_name
+        )
+
+    def get_team_scores(self, round_index: int) -> TeamScore:
+        """Returns the scores of the two teams in the game."""
+        game_round = self.get_game_round(round_index)
+
+        ct_score = game_round['ctScore']
+        if ct_score is None:
+            raise ValueError("No CT score found")
+
+        t_score = game_round['tScore']
+        if t_score is None:
+            raise ValueError("No T score found")
+    
+        return TeamScore(
+            ct_score=ct_score,
+            t_score=t_score
+        )
+    
+    def get_clock_time(self, round_index: int, frame_index: int) -> str:
+        """Returns the clock time at the given round and frame."""
+        frame = self.get_frame(round_index, frame_index)
+        return frame['clockTime']

@@ -21,6 +21,7 @@ class MainApplication(ttk.Frame):
     dm: DataManager | None
     vm: VisualizationManager | None
     top_bar_menu: 'TopBarMenu'
+    game_state_label: 'GameStateLabel'
     canvas: 'CanvasPanel'
     round_select_bar: 'RoundSelectBar'
     timeline_bar: 'TimelineBar'
@@ -34,6 +35,9 @@ class MainApplication(ttk.Frame):
         # Create GUI here
         self.top_bar_menu = TopBarMenu(self.root, self)
         self.top_bar_menu.pack(side='top', fill='x')
+
+        self.game_state_label = GameStateLabel(self)
+        self.game_state_label.pack(side='top', fill='x')
 
         self.canvas = CanvasPanel(self)
         self.canvas.pack(side='top', fill='both', expand=True)
@@ -55,8 +59,9 @@ class MainApplication(ttk.Frame):
 
         if self.dm.get_round_count() < 0:
             raise ValueError('No rounds found in the demo file.')
-
+        
         self.canvas.draw_round(0)
+        self.game_state_label.refresh_label()
         self.timeline_bar.reset_timeline_bar(0)
         self.timeline_bar.reload_play_button()
     
@@ -143,6 +148,9 @@ class CanvasPanel(ttk.Frame):
         self.parent.vm.draw_round_start(round_index)
         self.canvas.draw()
 
+        # Refresh game state label
+        self.parent.game_state_label.refresh_label()
+
         # Reset timeline bar
         self.parent.timeline_bar.reset_timeline_bar(round_index)
     
@@ -167,6 +175,9 @@ class CanvasPanel(ttk.Frame):
         self.parent.vm.progress_visualization()
         self.canvas.draw()
 
+        # Refresh game state label
+        self.parent.game_state_label.refresh_label()
+
         # Progress timeline bar
         self.parent.timeline_bar.progress_timeline_bar(self.parent.vm.current_round_index, self.parent.vm.current_frame_index)
 
@@ -180,7 +191,8 @@ class CanvasPanel(ttk.Frame):
 # TODO: Re-create more Noesis functionality.
 # DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
 # 2. A bar on the right that has a list of players. Each entry has their hp, armor, name, weapon, money, utility, and secondary. The HP is also visualized as a a bar (colored with the team color) that is filled in proportion to the player's HP.
-# 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
+# DONE 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
+# DONE 4. A bar at the top that looks like: <Name of Team 1> - <Score of Team 1> | <Round Timer> | <Score of Team 2> - <Name of Team 2>. The team names and scores are updated as the rounds progress.
 
 class RoundSelectBar(ttk.Frame):
     """A bar that displays a list of the round numbers from the selected demo. Selecting a round number shows the start of that round on the plot."""
@@ -297,9 +309,16 @@ class TimelineBar(ttk.Frame):
 
         # Jump to that frame in the visualization
         self.parent.vm.current_frame_index = clicked_frame_index - 1 # -1 because calling progress_visualization() will increment the frame index before updating the plot
+
+        # Update the plot
         self.parent.vm.progress_visualization()
         self.parent.canvas.canvas.draw()
+
+        # Draw the progress bar
         self._draw_progress_bar_fill_rectangle(event.x)
+
+        # Refresh the game state label
+        self.parent.game_state_label.refresh_label()
     
     def _add_event_markers(self, round_index: int):
         """Adds markers to the timeline bar for each event that happened during the round specified by `round_index`."""
@@ -361,3 +380,63 @@ class TimelineBar(ttk.Frame):
         progress_bar_fill_length = int(current_frame_index * self._get_pixels_per_frame(round_index))
         self._draw_progress_bar_fill_rectangle(progress_bar_fill_length)
         self._timeline_canvas.update()
+
+class GameStateLabel(ttk.Frame):
+    """A label that displays the current game state."""
+    parent: MainApplication
+    label: tk.Text
+
+    def __init__(self, parent: MainApplication, *args, **kwargs):
+        ttk.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+
+        self.label = tk.Text(self, font=('Arial', 14), height=1, wrap='none')
+
+        # Add format tags we want to use
+        self.label.tag_configure('center', justify='center')
+        self.label.tag_configure('t', foreground='goldenrod')
+        self.label.tag_configure('ct', foreground='darkblue')
+
+        self.label.insert('end', 'T - 0', ('t', 'center'))
+        self.label.insert('end', ' | 0:00 | ', 'center')
+        self.label.insert('end', '0 - CT', ('ct', 'center'))
+
+        # Disable the label so it can't be edited
+        self.label.configure(state='disabled')
+
+        self.label.pack(side='top', fill='x', expand=True)
+
+        self.pack(side='top', fill='x')
+    
+    def _format_info_label(self, team_name: str, score: int, team_type: TeamType):
+        """Formats the team info label."""
+        match team_type:
+            case TeamType.T:
+                return f'{team_name} - {score}'
+            case TeamType.CT:
+                return f'{score} - {team_name}'
+    
+    def refresh_label(self):
+        """Refreshes the label with the current game state."""
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.parent.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+
+        currently_visualized_round = self.parent.vm.current_round_index
+        current_frame = self.parent.vm.current_frame_index
+
+        team_names = self.parent.dm.get_team_names(currently_visualized_round)
+        team_scores = self.parent.dm.get_team_scores(currently_visualized_round)
+        clock_time = self.parent.dm.get_clock_time(currently_visualized_round, current_frame)
+
+        # Re-enable the label's editable status so we can update it
+        self.label.configure(state='normal')
+
+        self.label.delete('1.0', 'end')
+        self.label.insert('end', f'{team_names.t_team_name} - {team_scores.t_score}', ('t', 'center'))
+        self.label.insert('end', f' | {clock_time} | ', 'center')
+        self.label.insert('end', f'{team_scores.ct_score} - {team_names.ct_team_name}', ('ct', 'center'))
+
+        # Disable the label again
+        self.label.configure(state='disabled')
