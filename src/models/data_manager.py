@@ -191,12 +191,12 @@ class DataManager:
     def get_round_start_tick(self, round_index: int) -> int:
         """Returns the tick at which the given round started."""
         round = self.get_game_round(round_index)
-        return round['startTick']
+        return round['freezeTimeEndTick']
     
-    def get_round_tick_length(self, round_index: int) -> int:
-        """Returns the tick length of the given round."""
+    def get_round_active_tick_length(self, round_index: int) -> int:
+        """Returns the number of ticks between the end of freeze time and the official end of the round."""
         round = self.get_game_round(round_index)
-        return round['endTick'] - round['startTick']
+        return round['endOfficialTick'] - round['freezeTimeEndTick']
     
     def get_round_events(self, round_index: int) -> RoundActions:
         """Returns a list of events that occurred in the given round in the form of a RoundActions object."""

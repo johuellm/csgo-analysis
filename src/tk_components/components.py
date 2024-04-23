@@ -310,7 +310,7 @@ class TimelineBar(ttk.Frame):
         
         round_events = self.parent.dm.get_round_events(round_index)
         round_starting_tick = self.parent.dm.get_round_start_tick(round_index)
-        pixels_per_tick = self._timeline_canvas.winfo_width() / self.parent.dm.get_round_tick_length(round_index)
+        pixels_per_tick = self._timeline_canvas.winfo_width() / self.parent.dm.get_round_active_tick_length(round_index)
 
         kill_event_color: dict[TeamType, str] = {TeamType.T: 'goldenrod', TeamType.CT: 'darkblue'}
 
