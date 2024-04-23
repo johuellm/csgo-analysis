@@ -334,6 +334,7 @@ class TimelineBar(ttk.Frame):
         """Resets the timeline bar to its default state. If `round_index` is not None, adds event markers for the round specified by `round_index`."""
         self._timeline_canvas.delete('all')
         self._timeline_canvas.update()
+        self.visualized_round_index = round_index
         if round_index is not None:
             self._add_event_markers(round_index)
     
