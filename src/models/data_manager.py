@@ -1,4 +1,4 @@
-from awpy.types import Game, GameRound, GameFrame, PlayerInfo
+from awpy.types import Game, GameRound, GameFrame, PlayerInfo, BombInfo
 from pathlib import Path
 import json
 from pydantic import TypeAdapter, ValidationError
@@ -99,6 +99,14 @@ class DataManager:
             TeamType.CT: ct_player_info_list,
             TeamType.T: t_player_info_list
         }
+    
+    def get_bomb_info(self, round_index: int, frame_index: int) -> BombInfo:
+        """Returns the BombInfo object for the given round and frame. If no bomb info is found, raises a ValueError."""
+        frame_data = self.get_frame(round_index, frame_index)
+        bomb_info = frame_data['bomb']
+        if bomb_info is None:
+            raise ValueError(f"No bomb info found in round {round_index}, frame {frame_index}")
+        return bomb_info
     
     def get_player_at_frame(self, player_index: int, team: TeamType, round_index: int, frame_index: int) -> PlayerInfo:
         """Returns the PlayerInfo object for the given player in the given team, round, and frame."""

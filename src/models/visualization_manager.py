@@ -102,6 +102,11 @@ class VisualizationManager:
         for index, player in enumerate(ct_side_players):
             self.text.append(self.axes.text(transformed_ct_x[index], transformed_ct_y[index], player['name'], fontsize=10, ha='center', va='bottom', color='white'))
 
+        bomb_info = self.dm.get_bomb_info(self.current_round_index, self.current_frame_index)
+        bomb_x = position_transform(map_name, bomb_info['x'], 'x')
+        bomb_y = position_transform(map_name, bomb_info['y'], 'y')
+        self.path_collections.append(self.axes.scatter(bomb_x, bomb_y, c='red')) # Maybe pick a better color for the bomb as fire grenades will also probably be red
+
         return self.axes
     
     def draw_round_start(self, round_index: int) -> Axes:
