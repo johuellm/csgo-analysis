@@ -16,6 +16,16 @@ from awpy.visualization.plot import plot_map
 from tk_components.imports import CanvasTooltip
 from tk_components.subcomponents import PlayerInfoFrame
 
+# TODO: Re-create more Noesis functionality.
+# DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
+# DONE 2. A bar on the right that has a list of players. Each entry has their hp, armor, name, weapon, money, utility, and secondary. The HP is also visualized as a a bar (colored with the team color) that is filled in proportion to the player's HP.
+# Note: consider turning some of the text into images for better readabiliity.
+# DONE 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
+# DONE 4. A bar at the top that looks like: <Name of Team 1> - <Score of Team 1> | <Round Timer> | <Score of Team 2> - <Name of Team 2>. The team names and scores are updated as the rounds progress.
+# 5. Plot grenades (and their trajectories) on the map.
+
+# After that, if I'm not missing any Noesis features, add the ability to plot a heatmap of trajectories from the entire dataset.
+
 class MainApplication(ttk.Frame):
     """Parent frame for all non-root components. Must be attached to root."""
     root: tk.Tk
@@ -205,12 +215,6 @@ class CanvasPanel(ttk.Frame):
     def pause_visualization(self):
         """Pauses the visualization."""
         self._do_play_visualization = False
-
-# TODO: Re-create more Noesis functionality.
-# DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
-# 2. A bar on the right that has a list of players. Each entry has their hp, armor, name, weapon, money, utility, and secondary. The HP is also visualized as a a bar (colored with the team color) that is filled in proportion to the player's HP.
-# DONE 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
-# DONE 4. A bar at the top that looks like: <Name of Team 1> - <Score of Team 1> | <Round Timer> | <Score of Team 2> - <Name of Team 2>. The team names and scores are updated as the rounds progress.
 
 class RoundSelectBar(ttk.Frame):
     """A bar that displays a list of the round numbers from the selected demo. Selecting a round number shows the start of that round on the plot."""

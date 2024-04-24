@@ -33,10 +33,14 @@ class PlayerInfoFrame(ttk.Frame):
         money = player_info['cash']
         has_bomb = player_info['hasBomb']
         has_defuse = player_info['hasDefuse']
+        has_helmet = player_info['hasHelmet']
 
         self.info_label.config(state=tk.NORMAL)
         self.info_label.delete('1.0', tk.END)
-        self.info_label.insert(tk.END, f'{name} | HP: {hp} | Armor: {armor}\n')
+        hp_status_info_string = f'{name} | HP: {hp}'
+        if armor > 0:
+            hp_status_info_string += f' | Armor {"(with Helmet)" if has_helmet else ""}: {armor}'
+        self.info_label.insert(tk.END, f'{hp_status_info_string}\n')
         self.info_label.insert(tk.END, f'Weapons: {", ".join(weapons)}\n')
         self.info_label.insert(tk.END, f'Money: {money}\n')
 
