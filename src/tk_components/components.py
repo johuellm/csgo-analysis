@@ -14,6 +14,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from awpy.visualization.plot import plot_map
 
 from tk_components.imports import CanvasTooltip
+from tk_components.subcomponents import PlayerInfoFrame
 
 class MainApplication(ttk.Frame):
     """Parent frame for all non-root components. Must be attached to root."""
@@ -23,6 +24,7 @@ class MainApplication(ttk.Frame):
     top_bar_menu: 'TopBarMenu'
     game_state_label: 'GameStateLabel'
     canvas: 'CanvasPanel'
+    player_status_sidebar: 'PlayerStatusSidebar'
     round_select_bar: 'RoundSelectBar'
     timeline_bar: 'TimelineBar'
 
@@ -35,18 +37,21 @@ class MainApplication(ttk.Frame):
         # Create GUI here
         self.top_bar_menu = TopBarMenu(self.root, self)
         self.top_bar_menu.pack(side='top', fill='x')
+        
+        self.timeline_bar = TimelineBar(self)
+        self.timeline_bar.pack(side='bottom', fill='x')
+        
+        self.round_select_bar = RoundSelectBar(self)
+        self.round_select_bar.pack(side='bottom', fill='x')
+
+        self.player_status_sidebar = PlayerStatusSidebar(self)
+        self.player_status_sidebar.pack(side='right', fill='y')
 
         self.game_state_label = GameStateLabel(self)
         self.game_state_label.pack(side='top', fill='x')
 
         self.canvas = CanvasPanel(self)
         self.canvas.pack(side='top', fill='both', expand=True)
-
-        self.timeline_bar = TimelineBar(self)
-        self.timeline_bar.pack(side='bottom', fill='x')
-        
-        self.round_select_bar = RoundSelectBar(self)
-        self.round_select_bar.pack(side='bottom', fill='x')
 
         self.pack(side='top', fill='both', expand=True)
     
@@ -85,6 +90,9 @@ class MainApplication(ttk.Frame):
 
         # Timeline bar
         self.timeline_bar.set_timeline_bar_progress(self.vm.current_round_index, self.vm.current_frame_index)
+
+        # Player status sidebar
+        self.player_status_sidebar.update_player_info_frames()
     
     def exit(self):
         """Exits the application."""
@@ -319,6 +327,10 @@ class TimelineBar(ttk.Frame):
         if self.visualized_round_index is None:
             return
         
+        # Check if the click was within the bounds of the timeline bar
+        if event.x < 0 or event.x > self._timeline_canvas.winfo_width():
+            return
+        
         # Calculate which frame corresponds to the x-coordinate of the click
         clicked_frame_index = int(event.x / self._get_pixels_per_frame(self.visualized_round_index))
 
@@ -406,12 +418,12 @@ class GameStateLabel(ttk.Frame):
         self.label.tag_configure('t', foreground='goldenrod')
         self.label.tag_configure('ct', foreground='darkblue')
 
-        self.label.insert('end', 'T - 0', ('t', 'center'))
-        self.label.insert('end', ' | 0:00 | ', 'center')
-        self.label.insert('end', '0 - CT', ('ct', 'center'))
+        self.label.insert(tk.END, 'T - 0', ('t', 'center'))
+        self.label.insert(tk.END, ' | 0:00 | ', 'center')
+        self.label.insert(tk.END, '0 - CT', ('ct', 'center'))
 
         # Disable the label so it can't be edited
-        self.label.configure(state='disabled')
+        self.label.configure(state=tk.DISABLED)
 
         self.label.pack(side='top', fill='x', expand=True)
 
@@ -440,12 +452,47 @@ class GameStateLabel(ttk.Frame):
         clock_time = self.parent.dm.get_clock_time(currently_visualized_round, current_frame)
 
         # Re-enable the label's editable status so we can update it
-        self.label.configure(state='normal')
+        self.label.configure(state=tk.NORMAL)
 
-        self.label.delete('1.0', 'end')
-        self.label.insert('end', f'{team_names.t_team_name} - {team_scores.t_score}', ('t', 'center'))
-        self.label.insert('end', f' | {clock_time} | ', 'center')
-        self.label.insert('end', f'{team_scores.ct_score} - {team_names.ct_team_name}', ('ct', 'center'))
+        self.label.delete('1.0', tk.END)
+        self.label.insert(tk.END, f'{team_names.t_team_name} - {team_scores.t_score}', ('t', 'center'))
+        self.label.insert(tk.END, f' | {clock_time} | ', 'center')
+        self.label.insert(tk.END, f'{team_scores.ct_score} - {team_names.ct_team_name}', ('ct', 'center'))
 
         # Disable the label again
-        self.label.configure(state='disabled')
+        self.label.configure(state=tk.DISABLED)
+
+class PlayerStatusSidebar(ttk.Frame):
+    """A sidebar that displays player information."""
+    parent: MainApplication
+    player_info_frames: list[PlayerInfoFrame]
+
+    def __init__(self, parent: MainApplication, *args, **kwargs):
+        ttk.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+
+        # Create GUI here
+        self.player_info_frames = []
+        for _ in range(10):
+            player_info_frame = PlayerInfoFrame(self)
+            player_info_frame.pack(side='top', fill='x')
+            self.player_info_frames.append(player_info_frame)
+
+        self.pack(side='right', fill='y')
+    
+    def update_player_info_frames(self):
+        if self.parent.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.parent.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        current_round = self.parent.vm.current_round_index
+        current_frame = self.parent.vm.current_frame_index
+
+        info = self.parent.dm.get_player_info_lists(current_round, current_frame)
+
+        for index, player in enumerate(info[TeamType.CT]):
+            self.player_info_frames[index].set_info(player)
+        
+        for index, player in enumerate(info[TeamType.T], start=5):
+            self.player_info_frames[index].set_info(player)
