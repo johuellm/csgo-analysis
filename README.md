@@ -23,6 +23,8 @@ The Tkinter application (very much under construction) can be run via the `gui.p
 
 `python src/gui.py`
 
+Click the File button at the top, then Open. Select a demo file and the application should visualize the very beginning of the game. Click around on the timeline or on a round number to jump around, or click Play to watch the demo unfold.
+
 ## Updating dependencies
 
 I used `pip-tools` to produce a `requirements.txt` file with exact versions of all dependencies pinned and hashed. This is to better ensure that a `pip install` to reproduce the environment doesn't fetch a different version of a dependency without our express intent.
