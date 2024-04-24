@@ -491,8 +491,28 @@ class PlayerStatusSidebar(ttk.Frame):
 
         info = self.parent.dm.get_player_info_lists(current_round, current_frame)
 
-        for index, player in enumerate(info[TeamType.CT]):
-            self.player_info_frames[index].set_info(player)
-        
-        for index, player in enumerate(info[TeamType.T], start=5):
-            self.player_info_frames[index].set_info(player)
+        # Creating a map of player names to their corresponding PlayerInfoFrame objects for faster lookup
+        player_info_frame_map: dict[str, PlayerInfoFrame] = {frame.player_name: frame for frame in self.player_info_frames}
+        player_names = set([player['name'] for player in info[TeamType.CT] + info[TeamType.T]])
+
+        # If the set of player names is different from what the frames are currently displaying, we know that not every player has a frame allocated to them.
+        # So, re-assign all of the frames to this new set of players.
+        do_forget_previous_owner = False
+        previous_frame_owners = set(player_info_frame_map.keys())
+        if previous_frame_owners != player_names:
+            do_forget_previous_owner = True
+
+        if do_forget_previous_owner:
+            for index, player in enumerate(info[TeamType.CT]):
+                self.player_info_frames[index].player_name = player['name']
+                self.player_info_frames[index].set_info(player)
+            
+            for index, player in enumerate(info[TeamType.T], start=5):
+                self.player_info_frames[index].player_name = player['name']
+                self.player_info_frames[index].set_info(player)
+        else:
+            for player in info[TeamType.CT]:
+                player_info_frame_map[player['name']].set_info(player)
+
+            for player in info[TeamType.T]: 
+                player_info_frame_map[player['name']].set_info(player)

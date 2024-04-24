@@ -6,6 +6,8 @@ from models.team_type import TeamType
 
 
 class PlayerInfoFrame(ttk.Frame):
+    """A frame that displays information about a player."""
+    player_name: str
     # health_bar_canvas: tk.Canvas
     info_label: tk.Text
 
@@ -13,6 +15,8 @@ class PlayerInfoFrame(ttk.Frame):
         super().__init__(parent, *args, **kwargs)
 
         # self.health_bar_canvas = tk.Canvas(self, width=100, height=20)
+
+        self.player_name = ''
 
         self.info_label = tk.Text(self, width=40, height=5)
         self.info_label.pack()
@@ -36,9 +40,9 @@ class PlayerInfoFrame(ttk.Frame):
         self.info_label.insert(tk.END, f'Money: {money}\n')
 
         match TeamType.from_str(player_info['side']):
-            case TeamType.CT:
-                self.info_label.insert(tk.END, f'Has Bomb: {has_bomb}\n')
             case TeamType.T:
+                self.info_label.insert(tk.END, f'Has Bomb: {has_bomb}\n')
+            case TeamType.CT:
                 self.info_label.insert(tk.END, f'Has Defuse: {has_defuse}\n')
 
         self.info_label.config(state=tk.DISABLED)
