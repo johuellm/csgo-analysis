@@ -57,13 +57,34 @@ class MainApplication(ttk.Frame):
         self.canvas.draw_current_map()
         self.round_select_bar.update_round_list()
 
+        # Make sure there is a first round to draw before drawing it
         if self.dm.get_round_count() < 0:
             raise ValueError('No rounds found in the demo file.')
-        
-        self.canvas.draw_round(0)
-        self.game_state_label.refresh_label()
-        self.timeline_bar.reset_timeline_bar(0)
+
+        # Draw the first round 
+        self.vm.draw_round_start(0)
+
+        # Reload visualization widgets
+        self.reload_visualization_widgets()
+
+        # Enable the play button
         self.timeline_bar.reload_play_button()
+    
+    def reload_visualization_widgets(self):
+        """Reload all relevant widgets to match the information in the current state of the visualization manager."""
+        if self.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+
+        # Canvas
+        self.canvas.canvas.draw()
+        
+        # Game state label
+        self.game_state_label.refresh_label()
+
+        # Timeline bar
+        self.timeline_bar.set_timeline_bar_progress(self.vm.current_round_index, self.vm.current_frame_index)
     
     def exit(self):
         """Exits the application."""
@@ -147,12 +168,6 @@ class CanvasPanel(ttk.Frame):
         # Draw on map canvas
         self.parent.vm.draw_round_start(round_index)
         self.canvas.draw()
-
-        # Refresh game state label
-        self.parent.game_state_label.refresh_label()
-
-        # Reset timeline bar
-        self.parent.timeline_bar.reset_timeline_bar(round_index)
     
     def play_visualization(self):
         """Plays the visualization."""
@@ -171,15 +186,10 @@ class CanvasPanel(ttk.Frame):
         if self.parent.vm is None:
             raise ValueError('VisualizationManager not initialized.')
 
-        # Draw on map canvas
+        # Progress the visualization
         self.parent.vm.progress_visualization()
-        self.canvas.draw()
-
-        # Refresh game state label
-        self.parent.game_state_label.refresh_label()
-
-        # Progress timeline bar
-        self.parent.timeline_bar.progress_timeline_bar(self.parent.vm.current_round_index, self.parent.vm.current_frame_index)
+        # Reload widgets
+        self.parent.reload_visualization_widgets()
 
         if self._do_play_visualization:
             self.parent.root.after(50, self._tick_visualization)
@@ -217,8 +227,13 @@ class RoundSelectBar(ttk.Frame):
             # If interested in using ttk.Button here, note that a row of the tk.Buttons, when resized to be smaller, will shrink all buttons equally until reaching a minimum size. After that, then higher round number buttons will be hidden.
             # With the new ttk.Buttons, the higher round number buttons will be hidden immediately, i.e. there is no attempt to shrink all buttons equally.
             # Fix this resizing issue if interested in using ttk.Buttons.
-            round_button = tk.Button(self, text=f'{round_number}', command=functools.partial(self.parent.canvas.draw_round, round_index), state=button_state)
+            round_button = tk.Button(self, text=f'{round_number}', command=functools.partial(self._go_to_round, round_index), state=button_state)
             round_button.pack(side='left', fill='x', expand=True)
+    
+    def _go_to_round(self, round_index: int):
+        """Updates the visualization to show the start of the round specified by `round_index`."""
+        self.parent.canvas.draw_round(round_index)
+        self.parent.reload_visualization_widgets()
     
     def update_round_list(self):
         """Updates the list of round buttons."""
@@ -308,17 +323,11 @@ class TimelineBar(ttk.Frame):
         clicked_frame_index = int(event.x / self._get_pixels_per_frame(self.visualized_round_index))
 
         # Jump to that frame in the visualization
-        self.parent.vm.current_frame_index = clicked_frame_index - 1 # -1 because calling progress_visualization() will increment the frame index before updating the plot
-
+        self.parent.vm.current_frame_index = clicked_frame_index
         # Update the plot
-        self.parent.vm.progress_visualization()
-        self.parent.canvas.canvas.draw()
-
-        # Draw the progress bar
-        self._draw_progress_bar_fill_rectangle(event.x)
-
-        # Refresh the game state label
-        self.parent.game_state_label.refresh_label()
+        self.parent.vm.revisualize()
+        # Reload visualization widgets
+        self.parent.reload_visualization_widgets()
     
     def _add_event_markers(self, round_index: int):
         """Adds markers to the timeline bar for each event that happened during the round specified by `round_index`."""
@@ -362,9 +371,10 @@ class TimelineBar(ttk.Frame):
         self._timeline_canvas.delete('progress')
         self._timeline_canvas.create_rectangle(0, 0, x, self._timeline_canvas.winfo_height(), fill='gray', tags='progress')
         self._timeline_canvas.tag_lower('progress') # Lower the progress bar along the z-axis so that it doesn't cover the event markers
+        self._timeline_canvas.update()
     
-    def progress_timeline_bar(self, round_index: int, current_frame_index: int = 0):
-        """Progresses the timeline bar by one frame, calculating how far the bar needs to visually progress by calculating how many ticks happened in the round specified by `round_index`."""
+    def set_timeline_bar_progress(self, round_index: int, current_frame_index: int = 0):
+        """Fills the timeline bar to indicate the progress of the visualized round, calculating how far the bar needs to visually progress by calculating how many ticks happened in the round specified by `round_index`."""
         if self.parent.dm is None:
             raise ValueError('DataManager not initialized.')
         if self.parent.vm is None:
@@ -373,13 +383,12 @@ class TimelineBar(ttk.Frame):
         # Check if the visualized round has changed, as this will require a reset of the timeline bar
         if self.visualized_round_index != round_index:
             self.visualized_round_index = round_index
-            self.reset_timeline_bar()
+            self.reset_timeline_bar(round_index)
             self._add_event_markers(round_index)
 
         # Paint the canvas up to current_frame_index * pixels_per_tick in dark gray to indicate progress
         progress_bar_fill_length = int(current_frame_index * self._get_pixels_per_frame(round_index))
         self._draw_progress_bar_fill_rectangle(progress_bar_fill_length)
-        self._timeline_canvas.update()
 
 class GameStateLabel(ttk.Frame):
     """A label that displays the current game state."""

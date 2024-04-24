@@ -114,6 +114,10 @@ class VisualizationManager:
         self.current_round_index = round_index
         self.current_frame_index = 0
         return self._draw_frame()
+    
+    def revisualize(self):
+        """Revisualizes the current round and frame."""
+        return self._draw_frame()
 
     def progress_visualization(self) -> bool:
         """Progresses the visualization by one frame. Returns True if the visualization is still playing, False if it has reached the end."""
