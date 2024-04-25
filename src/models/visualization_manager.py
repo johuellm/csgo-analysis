@@ -20,8 +20,6 @@ class VisualizationManager:
     current_round_index: int
     current_frame_index: int
 
-    do_play_visualization: bool
-
     def __init__(self, dm: DataManager, fig: Figure, axes: Axes):
         self.dm = dm
         self.fig = fig
@@ -32,8 +30,6 @@ class VisualizationManager:
         
         self.current_round_index = 0
         self.current_frame_index = 0
-
-        self.do_play_visualization = False
     
     @classmethod
     def from_data_manager(cls, dm: DataManager) -> 'VisualizationManager':
