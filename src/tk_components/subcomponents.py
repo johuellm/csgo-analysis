@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from awpy.types import PlayerInfo
 
-from models.team_type import TeamType
+from models.side_type import SideType
 
 
 class PlayerInfoFrame(ttk.Frame):
@@ -45,11 +45,11 @@ class PlayerInfoFrame(ttk.Frame):
         self.info_label.insert(tk.END, f'Money: {money}\n')
 
         hp_bar_fill_color: str
-        match TeamType.from_str(player_info['side']):
-            case TeamType.T:
+        match SideType.from_str(player_info['side']):
+            case SideType.T:
                 self.info_label.insert(tk.END, f'Has Bomb: {has_bomb}\n')
                 hp_bar_fill_color = 'goldenrod'
-            case TeamType.CT:
+            case SideType.CT:
                 self.info_label.insert(tk.END, f'Has Defuse: {has_defuse}\n')
                 hp_bar_fill_color = 'lightblue'
         

@@ -8,7 +8,7 @@ from models.round_stats import RoundStats
 from models.team import BothTeams, Team
 from models.team_names import TeamNames
 from models.team_scores import TeamScore
-from models.team_type import TeamType
+from models.side_type import SideType
 from models.routine import FrameCount, Routine
 from typing import Generator 
 from logging import Logger
@@ -86,18 +86,18 @@ class DataManager:
         """Returns the name of the map in the Game object."""
         return self.data['mapName']
 
-    def get_player_info_lists(self, round_index: int, frame_index: int) -> dict[TeamType, list[PlayerInfo]]:
+    def get_player_info_lists(self, round_index: int, frame_index: int) -> dict[SideType, list[PlayerInfo]]:
         """Returns the list of PlayerInfo objects for both teams in the given round and frame. If no player info is found for a team, raises a ValueError."""
         frame_data = self.get_frame(round_index, frame_index)
-        ct_player_info_list = frame_data[TeamType.CT.value]['players']
+        ct_player_info_list = frame_data[SideType.CT.value]['players']
         if ct_player_info_list is None:
-            raise ValueError(f"No player info found for team {TeamType.CT.value} in round {round_index}, frame {frame_index}")
-        t_player_info_list = frame_data[TeamType.T.value]['players']
+            raise ValueError(f"No player info found for team {SideType.CT.value} in round {round_index}, frame {frame_index}")
+        t_player_info_list = frame_data[SideType.T.value]['players']
         if t_player_info_list is None:
-            raise ValueError(f"No player info found for team {TeamType.T.value} in round {round_index}, frame {frame_index}")
+            raise ValueError(f"No player info found for team {SideType.T.value} in round {round_index}, frame {frame_index}")
         return {
-            TeamType.CT: ct_player_info_list,
-            TeamType.T: t_player_info_list
+            SideType.CT: ct_player_info_list,
+            SideType.T: t_player_info_list
         }
     
     def get_bomb_info(self, round_index: int, frame_index: int) -> BombInfo:
@@ -108,14 +108,14 @@ class DataManager:
             raise ValueError(f"No bomb info found in round {round_index}, frame {frame_index}")
         return bomb_info
     
-    def get_player_at_frame(self, player_index: int, team: TeamType, round_index: int, frame_index: int) -> PlayerInfo:
+    def get_player_at_frame(self, player_index: int, team: SideType, round_index: int, frame_index: int) -> PlayerInfo:
         """Returns the PlayerInfo object for the given player in the given team, round, and frame."""
         players = self.get_player_info_lists(round_index, frame_index)[team]
         player = players[player_index] # NOTE: I don't know if the assumption that players are ordered the same every round is correct. If this is wrong, change how this is done.
         # To be fair, the old way (storing mappings from index to name, mappings which were generated in `get_all_team_routines`) also kind of relied on that assumption in that if untrue, the order of players could change across rounds and that would break the GUI.
         return player 
     
-    def is_player_alive(self, player_index: int, team: TeamType, round_index: int, frame_index: int) -> bool:
+    def is_player_alive(self, player_index: int, team: SideType, round_index: int, frame_index: int) -> bool:
         """Returns whether the given player is alive in the given team, round, and frame."""
         player = self.get_player_at_frame(player_index, team, round_index, frame_index)
         return player['isAlive']
@@ -126,7 +126,7 @@ class DataManager:
         frame = self.get_frame(round_index, frame_index)
         
         # Round-level stats
-        winning_side = TeamType.from_str(round['winningSide'])
+        winning_side = SideType.from_str(round['winningSide'])
         round_end_reason = round['roundEndReason']
 
         # Frame-level stats
@@ -137,7 +137,7 @@ class DataManager:
         opponent_equipment_value = frame['ct']['teamEqVal']
 
         # T-side stats
-        players = [Player.from_player_info(player_info) for player_info in self.get_player_info_lists(round_index, frame_index)[TeamType.T]]
+        players = [Player.from_player_info(player_info) for player_info in self.get_player_info_lists(round_index, frame_index)[SideType.T]]
 
         # TODO: Understand why the CT-side stats and the T-side stats we're storing in RoundStats are asymmetric
 
@@ -150,19 +150,19 @@ class DataManager:
             clock_time
         )
     
-    def get_player_hp(self, player_index: int, team: TeamType, round_index: int, frame_index: int) -> int:
+    def get_player_hp(self, player_index: int, team: SideType, round_index: int, frame_index: int) -> int:
         """Returns the HP of the given player in the given team, round, and frame."""
         player = self.get_player_at_frame(player_index, team, round_index, frame_index)
         return player['hp']
 
-    def _get_players_from_team_from_frame(self, frame: GameFrame, team: TeamType) -> list[PlayerInfo]:
+    def _get_players_from_team_from_frame(self, frame: GameFrame, team: SideType) -> list[PlayerInfo]:
         """Returns the list of T-side PlayerInfo objects from the given frame object. If no player info is found, raises a ValueError."""
         players = frame[team.value]['players']
         if players is None:
             raise ValueError(f"No player info found for team {team.value} in frame")
         return players
     
-    def _get_players_from_team(self, round_index: int, frame_index: int, team: TeamType) -> list[PlayerInfo]:
+    def _get_players_from_team(self, round_index: int, frame_index: int, team: SideType) -> list[PlayerInfo]:
         """Returns the list of T-side PlayerInfo objects for the given round and frame. If no player info is found, raises a ValueError."""
         frame = self.get_frame(round_index, frame_index)
         return self._get_players_from_team_from_frame(frame, team)
@@ -177,19 +177,19 @@ class DataManager:
                 yield frames[index:min(index + chunk_size, frame_count)]
 
         player_info_lists = self.get_player_info_lists(round_index, 0)
-        t_side_player_names = frozenset([player['name'] for player in player_info_lists[TeamType.T]])
-        ct_side_player_names = frozenset([player['name'] for player in player_info_lists[TeamType.CT]])
+        t_side_player_names = frozenset([player['name'] for player in player_info_lists[SideType.T]])
+        ct_side_player_names = frozenset([player['name'] for player in player_info_lists[SideType.CT]])
 
         t_side_routines: dict[str, list[Routine]] = {player_name: list() for player_name in t_side_player_names}
         ct_side_routines: dict[str, list[Routine]] = {player_name: list() for player_name in ct_side_player_names}
 
         for chunk in batch_frames(frames, routine_length):
-            for player_name in t_side_player_names: t_side_routines[player_name].append(Routine(player_name, TeamType.T))
-            for player_name in ct_side_player_names: ct_side_routines[player_name].append(Routine(player_name, TeamType.CT))
+            for player_name in t_side_player_names: t_side_routines[player_name].append(Routine(player_name, SideType.T))
+            for player_name in ct_side_player_names: ct_side_routines[player_name].append(Routine(player_name, SideType.CT))
             for frame in chunk:
-                for player in self._get_players_from_team_from_frame(frame, TeamType.T):
+                for player in self._get_players_from_team_from_frame(frame, SideType.T):
                     t_side_routines[player['name']][-1].add_point(player['x'], player['y'])
-                for player in self._get_players_from_team_from_frame(frame, TeamType.CT):
+                for player in self._get_players_from_team_from_frame(frame, SideType.CT):
                     ct_side_routines[player['name']][-1].add_point(player['x'], player['y'])
         t_side = Team.from_routines_list(list(t_side_routines.values()))
         ct_side = Team.from_routines_list(list(ct_side_routines.values()))

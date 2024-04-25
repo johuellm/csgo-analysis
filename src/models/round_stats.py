@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from models.team_type import TeamType
+from models.side_type import SideType
 from models.player import Player
 
 @dataclass
 class RoundStats:
     players: list[Player]
-    winning_side: TeamType
+    winning_side: SideType
     round_end_reason: str # TODO: Maybe enum this
     opponents_alive: int
     opponent_equipment_value: int

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import NewType, overload
 
-from models.team_type import TeamType
+from models.side_type import SideType
 
 # This NewType exists to make sure we don't pass any kind of number in for FrameCount.
 # When creating a value of type FrameCount, we must be expressly aware that this variable we're making represents a frame count.
@@ -13,11 +13,11 @@ DEFAULT_ROUTINE_LENGTH = FrameCount(5)
 class Routine:
     """A class representing a player's trajectory - that is, multiple points ."""
     player_name: str
-    team: TeamType
+    team: SideType
     _x: list[float]
     _y: list[float]
 
-    def __init__(self, player_name: str, team: TeamType, x_values: list[float] | None = None, y_values: list[float] | None = None):
+    def __init__(self, player_name: str, team: SideType, x_values: list[float] | None = None, y_values: list[float] | None = None):
         self.player_name = player_name
         self.team = team
         if x_values is None: x_values = list()

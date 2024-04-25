@@ -7,7 +7,7 @@ from matplotlib.text import Text
 
 from models.data_manager import DataManager
 from models.routine import Routine
-from models.team_type import TeamType
+from models.side_type import SideType
 
 class VisualizationManager:
     dm: DataManager
@@ -83,8 +83,8 @@ class VisualizationManager:
 
         # Plot player positions
         player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index)
-        t_side_players = player_info_lists[TeamType.T]
-        ct_side_players = player_info_lists[TeamType.CT]
+        t_side_players = player_info_lists[SideType.T]
+        ct_side_players = player_info_lists[SideType.CT]
 
         transformed_t_x = [position_transform(map_name, player['x'], 'x') for player in t_side_players]
         transformed_t_y = [position_transform(map_name, player['y'], 'y') for player in t_side_players]
@@ -115,8 +115,8 @@ class VisualizationManager:
         }
 
         thrower_color_map = {
-            TeamType.T: 'goldenrod',
-            TeamType.CT: 'lightblue',
+            SideType.T: 'goldenrod',
+            SideType.CT: 'lightblue',
         }
 
         for grenade in self.dm.get_grenade_events(self.current_round_index):
@@ -126,7 +126,7 @@ class VisualizationManager:
                 end_x = position_transform(map_name, grenade['grenadeX'], 'x')
                 end_y = position_transform(map_name, grenade['grenadeY'], 'y')
                 grenade_color = grenade_color_map[grenade['grenadeType']]
-                thrower_color = thrower_color_map[TeamType.from_str(grenade['throwerSide'])]
+                thrower_color = thrower_color_map[SideType.from_str(grenade['throwerSide'])]
                 self.lines.extend(self.axes.plot([start_x, end_x], [start_y, end_y], color=grenade_color))
                 self.path_collections.append(self.axes.scatter(end_x, end_y, color=grenade_color, edgecolors=thrower_color))
 

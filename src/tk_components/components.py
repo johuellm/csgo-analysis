@@ -5,7 +5,7 @@ import tkinter.ttk as ttk
 from tkinter import filedialog
 
 from models.data_manager import DataManager
-from models.team_type import TeamType
+from models.side_type import SideType
 from models.visualization_manager import VisualizationManager
 
 from matplotlib.backend_bases import key_press_handler
@@ -356,11 +356,11 @@ class TimelineBar(ttk.Frame):
         round_starting_tick = self.parent.dm.get_round_start_tick(round_index)
         pixels_per_tick = self._timeline_canvas.winfo_width() / self.parent.dm.get_round_active_tick_length(round_index)
 
-        kill_event_color: dict[TeamType, str] = {TeamType.T: 'goldenrod', TeamType.CT: 'darkblue'}
+        kill_event_color: dict[SideType, str] = {SideType.T: 'goldenrod', SideType.CT: 'darkblue'}
 
         # Only drawing kill + bomb events for now
         for event in round_events.kills:
-            victim_team = TeamType.from_str(event['victimSide'] or "")
+            victim_team = SideType.from_str(event['victimSide'] or "")
             x = int((event['tick'] - round_starting_tick) * pixels_per_tick)
             kill_event_marker = self._timeline_canvas.create_line(x, 0, x, self._timeline_canvas.winfo_height(), fill=kill_event_color[victim_team], tags='kill-event', width=2, activewidth=3)
             tooltip_text = f'{event["attackerName"]} killed {event["victimName"]} with {event["weapon"]}'
@@ -433,12 +433,12 @@ class GameStateLabel(ttk.Frame):
 
         self.pack(side='top', fill='x')
     
-    def _format_info_label(self, team_name: str, score: int, team_type: TeamType):
-        """Formats the team info label."""
-        match team_type:
-            case TeamType.T:
+    def _format_info_label(self, team_name: str, score: int, side: SideType):
+        """Formats the team info label based on the given side."""
+        match side:
+            case SideType.T:
                 return f'{team_name} - {score}'
-            case TeamType.CT:
+            case SideType.CT:
                 return f'{score} - {team_name}'
     
     def refresh_label(self):
@@ -497,7 +497,7 @@ class PlayerStatusSidebar(ttk.Frame):
 
         # Creating a map of player names to their corresponding PlayerInfoFrame objects for faster lookup
         player_info_frame_map: dict[str, PlayerInfoFrame] = {frame.player_name: frame for frame in self.player_info_frames}
-        player_names = set([player['name'] for player in info[TeamType.CT] + info[TeamType.T]])
+        player_names = set([player['name'] for player in info[SideType.CT] + info[SideType.T]])
 
         # If the set of player names is different from what the frames are currently displaying, we know that not every player has a frame allocated to them.
         # So, re-assign all of the frames to this new set of players.
@@ -507,16 +507,16 @@ class PlayerStatusSidebar(ttk.Frame):
             do_forget_previous_owner = True
 
         if do_forget_previous_owner:
-            for index, player in enumerate(info[TeamType.CT]):
+            for index, player in enumerate(info[SideType.CT]):
                 self.player_info_frames[index].player_name = player['name']
                 self.player_info_frames[index].set_info(player)
             
-            for index, player in enumerate(info[TeamType.T], start=5):
+            for index, player in enumerate(info[SideType.T], start=5):
                 self.player_info_frames[index].player_name = player['name']
                 self.player_info_frames[index].set_info(player)
         else:
-            for player in info[TeamType.CT]:
+            for player in info[SideType.CT]:
                 player_info_frame_map[player['name']].set_info(player)
 
-            for player in info[TeamType.T]: 
+            for player in info[SideType.T]: 
                 player_info_frame_map[player['name']].set_info(player)
