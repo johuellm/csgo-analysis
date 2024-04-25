@@ -23,7 +23,7 @@ The Tkinter application (very much under construction) can be run via the `gui.p
 
 `python src/gui.py`
 
-Click the File button at the top, then Open. Select a demo file and the application should visualize the very beginning of the game. Click around on the timeline or on a round number to jump around, or click Play to watch the demo unfold.
+Click the File button at the top, then Open. Select a demo file and the application will visualize the first frame of round 1. Click Play to watch the demo unfold, click on a round number to jump to that round, or scrub the timeline for finer control.
 
 ## Updating dependencies
 
