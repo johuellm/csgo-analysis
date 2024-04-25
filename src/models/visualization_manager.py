@@ -53,8 +53,7 @@ class VisualizationManager:
         transformed_x = [position_transform(map_name, xpos, 'x') for xpos in routine.x]
         transformed_y = [position_transform(map_name, ypos, 'y') for ypos in routine.y]
 
-        line = self.axes.plot(transformed_x, transformed_y, fmt, **kwargs)
-        self.lines.extend(line)
+        self.lines.extend(self.axes.plot(transformed_x, transformed_y, fmt, **kwargs))
         return self.axes
     
     def _clear_all_drawings(self):
@@ -80,11 +79,12 @@ class VisualizationManager:
 
         self._clear_all_drawings()
 
+        map_name = self.dm.get_map_name()
+
+        # Plot player positions
         player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index)
         t_side_players = player_info_lists[TeamType.T]
         ct_side_players = player_info_lists[TeamType.CT]
-
-        map_name = self.dm.get_map_name()
 
         transformed_t_x = [position_transform(map_name, player['x'], 'x') for player in t_side_players]
         transformed_t_y = [position_transform(map_name, player['y'], 'y') for player in t_side_players]
@@ -101,7 +101,34 @@ class VisualizationManager:
         bomb_info = self.dm.get_bomb_info(self.current_round_index, self.current_frame_index)
         bomb_x = position_transform(map_name, bomb_info['x'], 'x')
         bomb_y = position_transform(map_name, bomb_info['y'], 'y')
-        self.path_collections.append(self.axes.scatter(bomb_x, bomb_y, c='red')) # Maybe pick a better color for the bomb as fire grenades will also probably be red
+        self.path_collections.append(self.axes.scatter(bomb_x, bomb_y, c='red')) # Maybe pick a better color for the bomb as fire grenades are also red
+
+        # Plot grenades
+        current_frame_tick = self.dm.get_frame(self.current_round_index, self.current_frame_index)['tick']
+
+        grenade_color_map = {
+            'Incendiary Grenade': 'red',
+            'Molotov': 'red',
+            'Smoke Grenade': 'gray',
+            'HE Grenade': 'green',
+            'Flashbang': 'gold',
+        }
+
+        thrower_color_map = {
+            TeamType.T: 'goldenrod',
+            TeamType.CT: 'lightblue',
+        }
+
+        for grenade in self.dm.get_grenade_events(self.current_round_index):
+            if grenade['throwTick'] <= current_frame_tick <= grenade['destroyTick']:
+                start_x = position_transform(map_name, grenade['throwerX'], 'x')
+                start_y = position_transform(map_name, grenade['throwerY'], 'y')
+                end_x = position_transform(map_name, grenade['grenadeX'], 'x')
+                end_y = position_transform(map_name, grenade['grenadeY'], 'y')
+                grenade_color = grenade_color_map[grenade['grenadeType']]
+                thrower_color = thrower_color_map[TeamType.from_str(grenade['throwerSide'])]
+                self.lines.extend(self.axes.plot([start_x, end_x], [start_y, end_y], color=grenade_color))
+                self.path_collections.append(self.axes.scatter(end_x, end_y, color=grenade_color, edgecolors=thrower_color))
 
         return self.axes
     

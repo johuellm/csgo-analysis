@@ -22,7 +22,7 @@ from tk_components.subcomponents import PlayerInfoFrame
 # Note: consider turning some of the text into images for better readabiliity.
 # DONE 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
 # DONE 4. A bar at the top that looks like: <Name of Team 1> - <Score of Team 1> | <Round Timer> | <Score of Team 2> - <Name of Team 2>. The team names and scores are updated as the rounds progress.
-# 5. Plot grenades (and their trajectories) on the map.
+# DONE 5. Plot grenades (and their trajectories) on the map.
 
 # After that, if I'm not missing any Noesis features, add the ability to plot a heatmap of trajectories from the entire dataset.
 

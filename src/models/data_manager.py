@@ -1,4 +1,4 @@
-from awpy.types import Game, GameRound, GameFrame, PlayerInfo, BombInfo
+from awpy.types import Game, GameRound, GameFrame, PlayerInfo, BombInfo, GrenadeAction
 from pathlib import Path
 import json
 from pydantic import TypeAdapter, ValidationError
@@ -259,3 +259,10 @@ class DataManager:
         """Returns the clock time at the given round and frame."""
         frame = self.get_frame(round_index, frame_index)
         return frame['clockTime']
+
+    def get_grenade_events(self, round_index: int) -> list[GrenadeAction]:
+        """Returns a list of grenade events in the given round."""
+        round = self.get_game_round(round_index)
+        if round['grenades'] is None:
+            raise ValueError("No grenade events found in round")
+        return round['grenades']
