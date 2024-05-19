@@ -266,3 +266,11 @@ class DataManager:
         if round['grenades'] is None:
             raise ValueError("No grenade events found in round")
         return round['grenades']
+
+    def get_tick_rate(self) -> int:
+        """Returns the rate at which the demo was recorded."""
+        return self.data['tickRate']
+    
+    def get_parse_rate(self) -> int:
+        """Returns the rate at which the demo was parsed."""
+        return self.data['parserParameters']['parseRate']

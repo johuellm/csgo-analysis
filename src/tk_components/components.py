@@ -210,7 +210,14 @@ class CanvasPanel(ttk.Frame):
         self.parent.reload_visualization_widgets()
 
         if self._do_play_visualization:
-            self.parent.root.after(50, self._tick_visualization)
+            # Calculating the number of milliseconds a frame should be displayed for (i.e. the seconds per frame)
+            # frames / second = T ticks / 1 second (tick rate) * 1 frame / S ticks (parse rate) = T / S
+            # -> seconds / frame = S / T
+            # -> milliseconds / frame = 1000 * (S / T)
+            parse_rate = self.parent.dm.get_parse_rate()
+            tick_rate = self.parent.dm.get_tick_rate()
+            seconds_per_frame = int((parse_rate / tick_rate) * 1000)
+            self.parent.root.after(seconds_per_frame, self._tick_visualization)
     
     def pause_visualization(self):
         """Pauses the visualization."""
