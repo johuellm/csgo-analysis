@@ -11,7 +11,7 @@ DEFAULT_ROUTINE_LENGTH = FrameCount(5)
 
 @dataclass(eq=False)
 class Routine:
-    """A class representing a player's trajectory - that is, multiple points ."""
+    """A class representing a player's trajectory - that is, multiple points."""
     player_name: str
     team: SideType
     _x: list[float]
