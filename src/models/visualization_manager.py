@@ -6,8 +6,13 @@ from matplotlib.lines import Line2D
 from matplotlib.text import Text
 
 from models.data_manager import DataManager
-from models.routine import Routine
+from models.routine import DEFAULT_ROUTINE_LENGTH, Routine
 from models.side_type import SideType
+
+# Hyperparameter for the number of frames in the past to include in the visualization. Currently set to the default routine length but there's no reason it has to be.
+# Probably shouldn't be much greater than 5 or so as the opacity calculations in the code drawing the frame will make the oldest frames almost invisible.
+# It's very doable to just change the opacity function if we want, though.
+VISUALIZED_ROUTINE_LENGTH = DEFAULT_ROUTINE_LENGTH
 
 class VisualizationManager:
     dm: DataManager
@@ -81,22 +86,30 @@ class VisualizationManager:
 
         map_name = self.dm.get_map_name()
 
-        # Plot player positions
-        player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index)
-        t_side_players = player_info_lists[SideType.T]
-        ct_side_players = player_info_lists[SideType.CT]
+        # Plot player positions up to VISUALIZED_ROUTINE_LENGTH frames back (VISUALIZED_ROUTINE_LENGTH + 1 frames total). Plot previous frames with decreasing opacity.
+        for frame_index_subtrahend in range(0, VISUALIZED_ROUTINE_LENGTH + 1):
+            # Ensure we don't try to access a frame index that doesn't exist
+            if self.current_frame_index - frame_index_subtrahend < 0:
+                break
+            
+            player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index - frame_index_subtrahend)
+            t_side_players = player_info_lists[SideType.T]
+            ct_side_players = player_info_lists[SideType.CT]
 
-        transformed_t_x = [position_transform(map_name, player['x'], 'x') for player in t_side_players]
-        transformed_t_y = [position_transform(map_name, player['y'], 'y') for player in t_side_players]
-        self.path_collections.append(self.axes.scatter(transformed_t_x, transformed_t_y, c='goldenrod'))
-        for index, player in enumerate(t_side_players):
-            self.text.append(self.axes.text(transformed_t_x[index], transformed_t_y[index], player['name'], fontsize=10, ha='center', va='bottom', color='white'))
+            transformed_t_x = [position_transform(map_name, player['x'], 'x') for player in t_side_players]
+            transformed_t_y = [position_transform(map_name, player['y'], 'y') for player in t_side_players]
+            self.path_collections.append(self.axes.scatter(transformed_t_x, transformed_t_y, c='goldenrod', alpha=(1 - 0.1*frame_index_subtrahend)))
 
-        transformed_ct_x = [position_transform(map_name, player['x'], 'x') for player in ct_side_players]
-        transformed_ct_y = [position_transform(map_name, player['y'], 'y') for player in ct_side_players]
-        self.path_collections.append(self.axes.scatter(transformed_ct_x, transformed_ct_y, c='lightblue'))
-        for index, player in enumerate(ct_side_players):
-            self.text.append(self.axes.text(transformed_ct_x[index], transformed_ct_y[index], player['name'], fontsize=10, ha='center', va='bottom', color='white'))
+            transformed_ct_x = [position_transform(map_name, player['x'], 'x') for player in ct_side_players]
+            transformed_ct_y = [position_transform(map_name, player['y'], 'y') for player in ct_side_players]
+            self.path_collections.append(self.axes.scatter(transformed_ct_x, transformed_ct_y, c='lightblue', alpha=(1 - 0.1*frame_index_subtrahend)))
+
+            # Draw player names only for the most recent frame
+            if frame_index_subtrahend == 0:
+                for index, player in enumerate(t_side_players):
+                    self.text.append(self.axes.text(transformed_t_x[index], transformed_t_y[index], player['name'], fontsize=10, ha='center', va='bottom', color='white'))
+                for index, player in enumerate(ct_side_players):
+                    self.text.append(self.axes.text(transformed_ct_x[index], transformed_ct_y[index], player['name'], fontsize=10, ha='center', va='bottom', color='white'))
 
         bomb_info = self.dm.get_bomb_info(self.current_round_index, self.current_frame_index)
         bomb_x = position_transform(map_name, bomb_info['x'], 'x')
