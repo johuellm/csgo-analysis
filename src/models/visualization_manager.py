@@ -3,9 +3,11 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from awpy.visualization.plot import plot_map, position_transform
 from matplotlib.lines import Line2D
+from matplotlib.markers import MarkerStyle
 from matplotlib.text import Text
 
 from models.data_manager import DataManager
+from models.position_tracker import PositionTracker
 from models.routine import DEFAULT_ROUTINE_LENGTH, Routine
 from models.side_type import SideType
 
@@ -20,6 +22,7 @@ class VisualizationManager:
     axes: Axes
     lines: list[Line2D] # Tracks lines for precise removal
     path_collections: list[PathCollection] # Tracks scatter plot points for precise removal
+    heatmap_path_collection: PathCollection | None # The points composing the heatmap
     text: list[Text] # Tracks text for precise removal
 
     current_round_index: int
@@ -31,6 +34,7 @@ class VisualizationManager:
         self.axes = axes
         self.lines = list()
         self.path_collections = list()
+        self.heatmap_path_collection = None
         self.text = list()
         
         self.current_round_index = 0
@@ -60,6 +64,29 @@ class VisualizationManager:
 
         self.lines.extend(self.axes.plot(transformed_x, transformed_y, fmt, **kwargs))
         return self.axes
+
+    def draw_position_heatmap(self, position_tracker: PositionTracker, **kwargs) -> Axes:
+        """Draws a heatmap of player positions on the map. `**kwargs` are passed to the `scatter` function."""
+
+        # Adding 0.5 to the tile coordinates to counteract a phenomena in which tiles are drawn with a small offset towards the top left corner of the map
+        transformed_x = [(tile[0] + 0.5) * position_tracker._tile_length for tile in position_tracker.tile_activity_counter.keys()]
+        transformed_y = [(tile[1] + 0.5) * position_tracker._tile_length for tile in position_tracker.tile_activity_counter.keys()]
+        
+        # Make the point color go from black to red based on the number of times the tile was visited
+        # To use a colormap, we need a list of values between 0 and 1. Matplotlib uses the colormap to map these values to colors.
+        # We want tiles with more visits to be "hotter" - for most colormaps brighter colors are produced by values closer to 1.
+        # To do this, we scale the visit counts using the maximum visit count to produce values within that range.
+        maximum_visit_count = max(position_tracker.tile_activity_counter.values())
+        scaled_visit_values = [count/maximum_visit_count for count in position_tracker.tile_activity_counter.values()]
+
+        self.heatmap_path_collection = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=position_tracker._tile_length, alpha=0.5, cmap='inferno', **kwargs)
+        return self.axes
+    
+    def _clear_heatmap(self):
+        """Clears the heatmap from the figure. This is a separate function from _clear_all_drawings because we might want to treat the heatmap as part of the background and not clear it with the other drawings."""
+        if self.heatmap_path_collection is not None:
+            self.heatmap_path_collection.remove()
+            self.heatmap_path_collection = None
     
     def _clear_all_drawings(self):
         """Clears all drawings from the figure."""
