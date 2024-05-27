@@ -186,14 +186,18 @@ class VisualizationManager:
         """Progresses the visualization by one frame. Returns True if the visualization is still playing, False if it has reached the end."""
         max_rounds = self.dm.get_round_count()
         max_frames = self.dm.get_frame_count(self.current_round_index)
-        if self.current_round_index >= max_rounds - 1:
-            return False
-        if self.current_frame_index >= max_frames - 1:
-            self.current_round_index += 1
-            self.current_frame_index = 0
-            if self.current_round_index >= max_rounds:
-                return False
         self.current_frame_index += 1
+        # If we're at the last frame of the round, go to the next round
+        if self.current_frame_index >= max_frames:
+            self.current_frame_index = 0
+            self.current_round_index += 1
+        # Can't progress if we've progressed past the last round
+        if self.current_round_index >= max_rounds:
+            # To make sure our state values are never of bounds, set the current round index to the last round and the current frame index to the last frame of the last round
+            self.current_round_index = max_rounds - 1
+            final_round_frame_count = self.dm.get_frame_count(self.current_round_index)
+            self.current_frame_index = final_round_frame_count - 1
+            return False
         self._draw_frame()
         return True
         
