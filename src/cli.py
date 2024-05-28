@@ -1,3 +1,4 @@
+from typing import Literal
 from models.data_manager import EXAMPLE_DEMO_PATH, DataManager
 from models.position_tracker import PositionTracker
 from models.routine import DEFAULT_ROUTINE_LENGTH
@@ -6,6 +7,7 @@ from models.visualization_manager import VisualizationManager
 from awpy.visualization.plot import position_transform
 
 def test_routine_drawing():
+    """Test drawing a routine from the example demo file."""
     dm = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
     vizm = VisualizationManager.from_data_manager(dm)
 
@@ -18,9 +20,10 @@ def test_routine_drawing():
     t_side_player_one_first_routine = t_side_player_one_routines[0] 
     vizm.draw_routine(t_side_player_one_first_routine)
     vizm.render()
-    input("Press Enter to end the program...")
+    input('Press Enter to end the program...')
 
 def test_heatmap_generation():
+    """Test generating and visualizing a heatmap of player positions throughout the game from the example demo file."""
     data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
     tracker = PositionTracker(data_manager.get_map_name(), 20)
     for round_index in range(data_manager.get_round_count()):
@@ -30,15 +33,21 @@ def test_heatmap_generation():
                     transformed_x, transformed_y = position_transform(tracker.map_name, player_info['x'], 'x'), position_transform(tracker.map_name, player_info['y'], 'y')
                     tracker.add_transformed_coordinates(transformed_x, transformed_y)
     vizm = VisualizationManager.from_data_manager(data_manager)
-    vizm.draw_position_heatmap(tracker)
+    vizm.position_tracker = tracker
+    vizm.draw_position_heatmap()
     vizm.render()
-    input("Press Enter to end the program...")
+    input('Press Enter to end the program...')
 
-def test_routine_heatmap():
+def test_routine_heatmap(do_aggregate_multiple_files: bool = False, heatmap_type: Literal['tiles'] | Literal['lines'] = 'tiles'):
+    """Test generating and visualizing a heatmap of player routines throughout the game from the example demo file.
+    Can optionally aggregate routines from multiple demo files in a directory.
+    The heatmap can be drawn with either tiles or lines."""
     data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
     tile_length = 20
-    # tracker = RoutineTracker(data_manager.get_map_name(), tile_length)
-    tracker = aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=20)
+    if do_aggregate_multiple_files:
+        tracker = aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=20)
+    else:
+        tracker = RoutineTracker(data_manager.get_map_name(), tile_length)
     for round_index in range(data_manager.get_round_count()):
         team_routines = data_manager.get_all_team_routines(round_index, DEFAULT_ROUTINE_LENGTH)
         for team in (team_routines.t_side, team_routines.ct_side):
@@ -50,12 +59,16 @@ def test_routine_heatmap():
     vizm.draw_round_start(0)
     for _ in range(25):
         vizm.progress_visualization()
-    # vizm.draw_routine_heatmap(tracker)
-    vizm.draw_routine_heatmap_as_lines(tracker)
+    vizm.routine_tracker = tracker
+    if heatmap_type == 'tiles':
+        vizm.draw_routine_tile_heatmap()
+    else:
+        vizm.draw_routine_line_heatmap()
     vizm.render()
-    input("Press Enter to end the program...")
+    input('Press Enter to end the program...')
 
 if __name__ == '__main__':
     # test_routine_drawing()
+    
     # test_heatmap_generation()
     test_routine_heatmap()

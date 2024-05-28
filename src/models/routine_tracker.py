@@ -73,8 +73,8 @@ class RoutineTracker:
         self._tile_routine_counter = defaultdict(Counter)
     
     @classmethod
-    def from_demo_file(cls, dm: DataManager, tile_length: int, routine_length: FrameCount = DEFAULT_ROUTINE_LENGTH) -> 'RoutineTracker':
-        """Instantiates a RoutineTracker object from a DataManager object, a tile length, and an optional routine length."""
+    def from_data_manager(cls, dm: DataManager, tile_length: int, routine_length: FrameCount = DEFAULT_ROUTINE_LENGTH) -> 'RoutineTracker':
+        """Instantiates a RoutineTracker object from a DataManager object, a tile length, and an optional routine length, adding all the routines in the game to the tracker."""
         tracker = cls(dm.get_map_name(), tile_length, routine_length)
         for round_index in range(dm.get_round_count()):
             team_routines = dm.get_all_team_routines(round_index, routine_length)
@@ -153,7 +153,7 @@ def aggregate_routines_from_directory(directory_path: Path, map_name: str, tile_
                 files_processed += 1
                 continue
 
-            tracker += RoutineTracker.from_demo_file(dm, tile_length, routine_length)
+            tracker += RoutineTracker.from_data_manager(dm, tile_length, routine_length)
             files_processed += 1
             demos_aggregated += 1
             print(f"Processed {file_path.name} - {files_processed}/{total_file_count} files processed, {demos_aggregated} demos aggregated.")

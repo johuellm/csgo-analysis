@@ -1,5 +1,9 @@
 from collections import Counter
 
+from models.data_manager import DataManager
+
+from awpy.visualization.plot import position_transform
+
 class PositionTracker:
     """A class for tracking the cumulative amount of times players enter each tile on the map, with a configurable tile size."""
     _map_name: str
@@ -10,6 +14,18 @@ class PositionTracker:
         self._map_name = map_name
         self._tile_length = tile_length
         self._tile_activity_counter = Counter()
+    
+    @classmethod
+    def from_data_manager(cls, dm: DataManager, tile_length: int) -> 'PositionTracker':
+        """Instantiates a PositionTracker object from a DataManager object and a tile length, adding the player positions from every game frame to the tracker."""
+        tracker = cls(dm.get_map_name(), tile_length)
+        for round_index in range(dm.get_round_count()):
+            for frame_index in range(dm.get_frame_count(round_index)):
+                for player_list in dm.get_player_info_lists(round_index, frame_index).values():
+                    for player_info in player_list:
+                        transformed_x, transformed_y = position_transform(tracker.map_name, player_info['x'], 'x'), position_transform(tracker.map_name, player_info['y'], 'y')
+                        tracker.add_transformed_coordinates(transformed_x, transformed_y)
+        return tracker
     
     @property
     def map_name(self) -> str:
