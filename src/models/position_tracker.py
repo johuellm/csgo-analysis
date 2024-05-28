@@ -1,4 +1,3 @@
-
 from collections import Counter
 
 class PositionTracker:
@@ -14,7 +13,8 @@ class PositionTracker:
     
     @property
     def map_name(self) -> str:
-        """The name of the map for which data is being tracked. Useful for ensuring that the correct map is being used in visualization or analysis."""
+        """The name of the map for which data is being tracked. 
+        Useful for ensuring that the correct map is being used in visualization or analysis."""
         return self._map_name
     
     @property
@@ -24,14 +24,15 @@ class PositionTracker:
     
     @property
     def tile_activity_counter(self) -> Counter[tuple[int, int]]:
-        """The Counter object that keeps track of how many times each tile has been visited. The keys are tuples of the form (x, y) where x and y are the coordinates of the tile."""
+        """The Counter object that keeps track of how many times each tile has been visited. 
+        The keys are tuples of the form (x, y) where x and y are the coordinates of the tile."""
         return self._tile_activity_counter
 
     def add_transformed_coordinates(self, x: float, y: float) -> int:
-        """Increments the counter for the tile that the given player position coordinates fall into. Assumes that the given coordinates are already transformed to the correct map's coordinate system via the position_transform function from the awpy module.
-        Returns the new count for the tile that the given coordinates fall into."""
+        """Increments the counter for the tile that the given player position coordinates fall into. 
+        Assumes that the given coordinates are already transformed to the correct map's coordinate system via the position_transform function from the awpy module.
+        Returns the new count."""
         tile_x = int(x / self._tile_length)
         tile_y = int(y / self._tile_length)
         self._tile_activity_counter[(tile_x, tile_y)] += 1
         return self._tile_activity_counter[(tile_x, tile_y)]
-    

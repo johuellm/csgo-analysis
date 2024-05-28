@@ -14,19 +14,20 @@ class Routine:
     """A class representing a player's trajectory - that is, multiple points."""
     player_name: str
     team: SideType
+    map_name: str
     _x: list[float]
     _y: list[float]
-
-    def __init__(self, player_name: str, team: SideType, x_values: list[float] | None = None, y_values: list[float] | None = None):
+    
+    def __init__(self, player_name: str, team: SideType, map_name: str, positions: list[tuple[float, float]] | None = None):
         self.player_name = player_name
         self.team = team
-        if x_values is None: x_values = list()
-        if y_values is None: y_values = list()
-        if len(x_values) != len(y_values):
-            raise ValueError("The provided lists of x and y values must be the same length.")
-        self._x = x_values
-        self._y = y_values
-
+        self.map_name = map_name
+        if positions is None:
+            self._x = []
+            self._y = []
+        else:
+            self._x, self._y = zip(*positions)
+            
     @property
     def x(self) -> list[float]:
         """Returns a list of x values for the routine."""
@@ -36,15 +37,6 @@ class Routine:
     def y(self) -> list[float]:
         """Returns a list of y values for the routine."""
         return self._y
-
-    def length(self) -> int:
-        """Returns the length of the routine."""
-        return len(self._x)
-    
-    def add_point(self, x: float, y: float):
-        """Adds a point to the routine."""
-        self.x.append(x)
-        self.y.append(y)
 
     @overload
     def __getitem__(self, index: int) -> tuple[float, float]:
@@ -64,3 +56,8 @@ class Routine:
             return list(zip(self._x[index.start:index.stop:index.step], self._y[index.start:index.stop:index.step]))
         else:
             raise TypeError("Index must be an integer or slice.")
+    
+    def __len__(self) -> int:
+        """Returns the length of the routine."""
+        # Because x and y values are ensured to be the same length in the constructor, we can just return the length of one of them.
+        return len(self._x)

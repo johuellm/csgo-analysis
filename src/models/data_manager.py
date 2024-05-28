@@ -181,23 +181,35 @@ class DataManager:
         ct_side_player_names = frozenset([player['name'] for player in player_info_lists[SideType.CT]])
 
         t_side_routines: dict[str, list[Routine]] = {player_name: list() for player_name in t_side_player_names}
-        ct_side_routines: dict[str, list[Routine]] = {player_name: list() for player_name in ct_side_player_names}
+        ct_side_routines: dict[str, list[Routine]] = {player_name: list() for player_name in ct_side_player_names}  
 
         for chunk in batch_frames(frames, routine_length):
-            for player_name in t_side_player_names: t_side_routines[player_name].append(Routine(player_name, SideType.T))
-            for player_name in ct_side_player_names: ct_side_routines[player_name].append(Routine(player_name, SideType.CT))
+            t_side_positions: dict[str, list[tuple[float, float]]] = {player_name: list() for player_name in t_side_player_names}
+            ct_side_positions: dict[str, list[tuple[float, float]]] = {player_name: list() for player_name in ct_side_player_names}
             for frame in chunk:
                 for player in self._get_players_from_team_from_frame(frame, SideType.T):
-                    t_side_routines[player['name']][-1].add_point(player['x'], player['y'])
+                    t_side_positions[player['name']].append((player['x'], player['y']))
                 for player in self._get_players_from_team_from_frame(frame, SideType.CT):
-                    ct_side_routines[player['name']][-1].add_point(player['x'], player['y'])
+                    ct_side_positions[player['name']].append((player['x'], player['y']))
+            for player_name in t_side_player_names:
+                # Sometimes we don't have data for every player in a frame - if we have no position data for a player for a whole routine-length, we don't want to create a routine for them
+                if len(t_side_positions[player_name]) == 0:
+                    continue
+                t_side_routines[player_name].append(Routine(player_name, SideType.T, self.get_map_name(), t_side_positions[player_name]))
+            for player_name in ct_side_player_names:
+                # Same as above
+                if len(ct_side_positions[player_name]) == 0:
+                    continue
+                ct_side_routines[player_name].append(Routine(player_name, SideType.CT, self.get_map_name(), ct_side_positions[player_name]))
+
         t_side = Team.from_routines_list(list(t_side_routines.values()))
         ct_side = Team.from_routines_list(list(ct_side_routines.values()))
+
         return BothTeams(
             t_side=t_side,
             ct_side=ct_side
         )
-    
+
     def get_round_start_tick(self, round_index: int) -> int:
         """Returns the tick at which the given round started."""
         round = self.get_game_round(round_index)

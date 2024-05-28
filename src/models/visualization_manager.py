@@ -1,4 +1,5 @@
-from matplotlib.collections import PathCollection
+from typing import Counter
+from matplotlib.collections import LineCollection, PathCollection
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from awpy.visualization.plot import plot_map, position_transform
@@ -6,9 +7,12 @@ from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.text import Text
 
+import numpy as np
+
 from models.data_manager import DataManager
 from models.position_tracker import PositionTracker
 from models.routine import DEFAULT_ROUTINE_LENGTH, Routine
+from models.routine_tracker import RoutineTracker, TilizedRoutine
 from models.side_type import SideType
 
 # Hyperparameter for the number of frames in the past to include in the visualization. Currently set to the default routine length but there's no reason it has to be.
@@ -69,8 +73,8 @@ class VisualizationManager:
         """Draws a heatmap of player positions on the map. `**kwargs` are passed to the `scatter` function."""
 
         # Adding 0.5 to the tile coordinates to counteract a phenomena in which tiles are drawn with a small offset towards the top left corner of the map
-        transformed_x = [(tile[0] + 0.5) * position_tracker._tile_length for tile in position_tracker.tile_activity_counter.keys()]
-        transformed_y = [(tile[1] + 0.5) * position_tracker._tile_length for tile in position_tracker.tile_activity_counter.keys()]
+        transformed_x = [(tile[0] + 0.5) * position_tracker.tile_length for tile in position_tracker.tile_activity_counter.keys()]
+        transformed_y = [(tile[1] + 0.5) * position_tracker.tile_length for tile in position_tracker.tile_activity_counter.keys()]
         
         # Make the point color go from black to red based on the number of times the tile was visited
         # To use a colormap, we need a list of values between 0 and 1. Matplotlib uses the colormap to map these values to colors.
@@ -80,6 +84,39 @@ class VisualizationManager:
         scaled_visit_values = [count/maximum_visit_count for count in position_tracker.tile_activity_counter.values()]
 
         self.heatmap_path_collection = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=position_tracker._tile_length, alpha=0.5, cmap='inferno', **kwargs)
+        return self.axes
+    
+    def draw_routine_heatmap(self, routine_tracker: RoutineTracker, **kwargs) -> Axes:
+        """Draws a heatmap of player routines originating from each alive player on the map. `**kwargs` are passed to the `scatter` function."""
+
+        alive_player_tiles: set[tuple[int, int]] = set()
+
+        player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index)
+        for player in (player_info_lists[SideType.T] + player_info_lists[SideType.CT]):
+            if player['isAlive'] is False:
+                continue
+            
+            tile_x = int(position_transform(self.dm.get_map_name(), player['x'], 'x') / routine_tracker.tile_length)
+            tile_y = int(position_transform(self.dm.get_map_name(), player['y'], 'y') / routine_tracker.tile_length)
+
+            alive_player_tiles.add((tile_x, tile_y))
+
+            routines_originating_from_player_tile = routine_tracker.tile_routine_counter[(tile_x, tile_y)]
+            print(f'{player["name"]} has {len(routines_originating_from_player_tile)} routines originating from tile ({tile_x}, {tile_y}).')
+
+        activity_surrounding_alive_player_tiles: Counter[tuple[int, int]] = Counter()
+        for tile in alive_player_tiles:
+            for routine in routine_tracker.tile_routine_counter[tile]:
+                for tile in zip(routine.tilized_x, routine.tilized_y):
+                    activity_surrounding_alive_player_tiles[tile] += 1
+        
+        transformed_x = [(tile[0] + 0.5) * routine_tracker.tile_length for tile in activity_surrounding_alive_player_tiles.keys()]
+        transformed_y = [(tile[1] + 0.5) * routine_tracker.tile_length for tile in activity_surrounding_alive_player_tiles.keys()]
+
+        most_common_routine_count = max(activity_surrounding_alive_player_tiles.values())
+        scaled_visit_values = [count/most_common_routine_count for count in activity_surrounding_alive_player_tiles.values()]
+
+        self.heatmap_path_collection = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=routine_tracker.tile_length, alpha=0.75, cmap='inferno', **kwargs)
         return self.axes
     
     def _clear_heatmap(self):

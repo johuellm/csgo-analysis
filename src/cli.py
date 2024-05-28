@@ -1,6 +1,7 @@
 from models.data_manager import EXAMPLE_DEMO_PATH, DataManager
 from models.position_tracker import PositionTracker
 from models.routine import DEFAULT_ROUTINE_LENGTH
+from models.routine_tracker import RoutineTracker, TilizedRoutine
 from models.visualization_manager import VisualizationManager
 from awpy.visualization.plot import position_transform
 
@@ -33,5 +34,26 @@ def test_heatmap_generation():
     vizm.render()
     input("Press Enter to end the program...")
 
+def test_routine_heatmap():
+    data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
+    tile_length = 20
+    tracker = RoutineTracker(data_manager.get_map_name(), tile_length)
+    for round_index in range(data_manager.get_round_count()):
+        team_routines = data_manager.get_all_team_routines(round_index, DEFAULT_ROUTINE_LENGTH)
+        for team in (team_routines.t_side, team_routines.ct_side):
+            for player_routines in team.routines:
+                for routine in player_routines:
+                    tracker.add_routine(TilizedRoutine(routine, tile_length))
+    vizm = VisualizationManager.from_data_manager(data_manager)
+    # Progressing the visualization to some arbitrary point in the game so the heatmap is more interesting than what it would look like from spawn positions.
+    vizm.draw_round_start(0)
+    for _ in range(25):
+        vizm.progress_visualization()
+    vizm.draw_routine_heatmap(tracker)
+    vizm.render()
+    input("Press Enter to end the program...")
+
 if __name__ == '__main__':
-    test_heatmap_generation()
+    # test_routine_drawing()
+    # test_heatmap_generation()
+    test_routine_heatmap()
