@@ -1,7 +1,7 @@
 from models.data_manager import EXAMPLE_DEMO_PATH, DataManager
 from models.position_tracker import PositionTracker
 from models.routine import DEFAULT_ROUTINE_LENGTH
-from models.routine_tracker import RoutineTracker, TilizedRoutine
+from models.routine_tracker import RoutineTracker, TilizedRoutine, aggregate_routines_from_directory
 from models.visualization_manager import VisualizationManager
 from awpy.visualization.plot import position_transform
 
@@ -37,7 +37,8 @@ def test_heatmap_generation():
 def test_routine_heatmap():
     data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
     tile_length = 20
-    tracker = RoutineTracker(data_manager.get_map_name(), tile_length)
+    # tracker = RoutineTracker(data_manager.get_map_name(), tile_length)
+    tracker = aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=20)
     for round_index in range(data_manager.get_round_count()):
         team_routines = data_manager.get_all_team_routines(round_index, DEFAULT_ROUTINE_LENGTH)
         for team in (team_routines.t_side, team_routines.ct_side):

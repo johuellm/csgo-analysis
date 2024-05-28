@@ -1,6 +1,8 @@
 from collections import defaultdict, Counter
+from pathlib import Path
 from typing import overload
-from models.routine import DEFAULT_ROUTINE_LENGTH, Routine
+from models.data_manager import DataManager, get_map_name_from_demo_file_without_parsing
+from models.routine import DEFAULT_ROUTINE_LENGTH, FrameCount, Routine
 from awpy.visualization.plot import position_transform
 
 class TilizedRoutine(Routine):
@@ -69,6 +71,18 @@ class RoutineTracker:
         self._tile_length = tile_length
         self._routine_length = routine_length
         self._tile_routine_counter = defaultdict(Counter)
+    
+    @classmethod
+    def from_demo_file(cls, dm: DataManager, tile_length: int, routine_length: FrameCount = DEFAULT_ROUTINE_LENGTH) -> 'RoutineTracker':
+        """Instantiates a RoutineTracker object from a DataManager object, a tile length, and an optional routine length."""
+        tracker = cls(dm.get_map_name(), tile_length, routine_length)
+        for round_index in range(dm.get_round_count()):
+            team_routines = dm.get_all_team_routines(round_index, routine_length)
+            for team in (team_routines.t_side, team_routines.ct_side):
+                for player_routines in team.routines:
+                    for routine in player_routines:
+                        tracker.add_routine(TilizedRoutine(routine, tile_length))
+        return tracker
 
     @property
     def map_name(self) -> str:
@@ -103,3 +117,47 @@ class RoutineTracker:
     def __len__(self) -> int:
         """Returns the total number of routines tracked by the RoutineTracker."""
         return sum(sum(counter.values()) for counter in self._tile_routine_counter.values())
+    
+    def __add__(self, other: 'RoutineTracker') -> 'RoutineTracker':
+        """Combines two RoutineTracker objects by adding their tile_routine_counter attributes together."""
+        if self._map_name != other.map_name or self._tile_length != other.tile_length or self._routine_length != other.routine_length:
+            raise ValueError("RoutineTrackers must be for the same map, have identical tile lengths, and have identical routine lengths to be combined.")
+        combined_tracker = RoutineTracker(self._map_name, self._tile_length, self._routine_length)
+        for tile, counter in self._tile_routine_counter.items():
+            combined_tracker._tile_routine_counter[tile] += counter
+        for tile, counter in other.tile_routine_counter.items():
+            combined_tracker._tile_routine_counter[tile] += counter
+        return combined_tracker
+    
+def aggregate_routines_from_directory(directory_path: Path, map_name: str, tile_length: int, routine_length: FrameCount = DEFAULT_ROUTINE_LENGTH, limit: int | None = None) -> RoutineTracker:
+    """Aggregates all the routines from a directory of demo files into a single RoutineTracker object.
+    If a limit is provided, only the first limit number of files will be processed."""
+    tracker = RoutineTracker(map_name, tile_length, routine_length)
+
+    files_processed = 0
+    total_file_count = len(list(directory_path.iterdir()))
+    demos_aggregated = 0
+    total_demos_to_aggregate = min(limit, total_file_count) if limit is not None else total_file_count
+    
+    for file_path in directory_path.iterdir():
+        if file_path.suffix == '.json':
+            # Skip demos that aren't for the map we're interested in.
+            if get_map_name_from_demo_file_without_parsing(file_path) != map_name:
+                files_processed += 1
+                continue
+
+            try:
+                dm = DataManager.from_file(file_path, do_validate=False)
+            except Exception as e:
+                print(f"Error loading file {file_path}: {e}")
+                files_processed += 1
+                continue
+
+            tracker += RoutineTracker.from_demo_file(dm, tile_length, routine_length)
+            files_processed += 1
+            demos_aggregated += 1
+            print(f"Processed {file_path.name} - {files_processed}/{total_file_count} files processed, {demos_aggregated} demos aggregated.")
+            if total_demos_to_aggregate is not None and demos_aggregated >= total_demos_to_aggregate:
+                break
+
+    return tracker

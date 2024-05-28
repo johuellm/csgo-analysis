@@ -12,6 +12,7 @@ from models.side_type import SideType
 from models.routine import FrameCount, Routine
 from typing import Generator 
 from logging import Logger
+import re
 
 data_manager_logger = Logger("DataManager")
 
@@ -286,3 +287,20 @@ class DataManager:
     def get_parse_rate(self) -> int:
         """Returns the rate at which the demo was parsed."""
         return self.data['parserParameters']['parseRate']
+
+def get_map_name_from_demo_file_without_parsing(file_path: Path) -> str | None:
+    """Returns the map name from a demo file without parsing the whole file. If no map name is found, (i.e. the file is not a valid demo file), returns None.
+    Intended to be faster than checking the map name post-parse for use in cases where we are iterating through many demo files and only want to parse a file if it's for a certain map."""
+
+    # If it's a valid demo file, there will be a series of characters that looks like this:
+    # "mapName": "de_overpass"
+    # We can find the map name by looking for this pattern
+    pattern = re.compile(r'"mapName": "(\w+)"')
+
+    with open(file_path, 'r') as file:
+        first_100_chars = file.read(100)
+        match = pattern.search(first_100_chars)
+        if match:
+            return match.group(1)
+    return None
+    
