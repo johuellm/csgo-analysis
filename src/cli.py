@@ -20,7 +20,7 @@ def test_routine_drawing():
     t_side_player_one_first_routine = t_side_player_one_routines[0] 
     vizm.draw_routine(t_side_player_one_first_routine)
     vizm.render()
-    input('Press Enter to end the program...')
+    input('Press Enter to go back to the menu.')
 
 def test_heatmap_generation():
     """Test generating and visualizing a heatmap of player positions throughout the game from the example demo file."""
@@ -36,16 +36,16 @@ def test_heatmap_generation():
     vizm.position_tracker = tracker
     vizm.draw_position_heatmap()
     vizm.render()
-    input('Press Enter to end the program...')
+    input('Press Enter to go back to the menu.')
 
-def test_routine_heatmap(do_aggregate_multiple_files: bool = False, heatmap_type: Literal['tiles'] | Literal['lines'] = 'tiles'):
+def test_routine_heatmap(do_aggregate_multiple_files: bool = False, heatmap_type: Literal['tiles'] | Literal['lines'] = 'tiles', file_aggregation_limit: int | None = 20):
     """Test generating and visualizing a heatmap of player routines throughout the game from the example demo file.
     Can optionally aggregate routines from multiple demo files in a directory.
     The heatmap can be drawn with either tiles or lines."""
     data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
     tile_length = 20
     if do_aggregate_multiple_files:
-        tracker = aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=20)
+        tracker = aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=file_aggregation_limit)
     else:
         tracker = RoutineTracker(data_manager.get_map_name(), tile_length)
     for round_index in range(data_manager.get_round_count()):
@@ -65,10 +65,53 @@ def test_routine_heatmap(do_aggregate_multiple_files: bool = False, heatmap_type
     else:
         vizm.draw_routine_line_heatmap()
     vizm.render()
-    input('Press Enter to end the program...')
+    input('Press Enter to go back to the menu.')
 
 if __name__ == '__main__':
-    # test_routine_drawing()
-    
-    # test_heatmap_generation()
-    test_routine_heatmap()
+    print('Hello.')
+
+    while True:
+        selection = input("""Select an option:
+        1. Test drawing a routine from the example demo file.
+        2. Test generating and visualizing a heatmap of player positions.
+        3. Test generating and visualizing a heatmap of player routines.
+        Q. Quit the program.
+              """)
+        match selection:
+            case '1':
+                test_routine_drawing()
+            case '2':
+                test_heatmap_generation()
+            case '3':
+                do_aggregate_multiple_files = False
+                heatmap_type = 'tiles'
+                file_aggregation_limit = None
+
+                answer = input('Do you want to aggregate routines from multiple demo files? (y/N)').lower()
+                match answer:
+                    case 'y':
+                        do_aggregate_multiple_files = True
+                        try:
+                            file_aggregation_limit = int(input('Enter the number of files to aggregate routines from:'))
+                        except ValueError:
+                            print('Invalid input. Defaulting to 20 files.')
+                            file_aggregation_limit = 20
+                    case _:
+                        print('Only using routines from the example demo file.')
+                
+                answer = input('Do you want to draw the heatmap with tiles (t) or lines (l)? (t/l)').lower()
+                match answer:
+                    case 't':
+                        heatmap_type = 'tiles'
+                    case 'l':
+                        heatmap_type = 'lines'
+                    case _:
+                        print('Invalid input. Defaulting to tiles.')
+                
+                test_routine_heatmap(do_aggregate_multiple_files, heatmap_type, file_aggregation_limit)
+            case 'Q':
+                break
+            case _:
+                print('Invalid selection. Please try again.')
+        
+    print('Goodbye.')
