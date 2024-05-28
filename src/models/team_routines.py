@@ -2,12 +2,13 @@ from dataclasses import dataclass
 from models.routine import Routine
 
 @dataclass
-class Team:
+class TeamRoutines:
+    """A class tracking per-player routine lists for one team in a match. Assumes there are 5 players on a team."""
     routines: tuple[list[Routine], list[Routine], list[Routine], list[Routine], list[Routine]]
 
     @classmethod
-    def from_routines_list(cls, routines: list[list[Routine]]) -> 'Team':
-        """Create a Team object from a list of routines. The list should be a list of lists, where each inner list contains the routines for a player."""
+    def from_routines_list(cls, routines: list[list[Routine]]) -> 'TeamRoutines':
+        """Instantiates object from a list of routines. The list should be a list of lists, where each inner list contains the routines for a player."""
         if len(routines) != 5:
             raise ValueError(f"Invalid number of player routines received when creating Team object - must be 5, received {len(routines)}")
         return cls((routines[0], routines[1], routines[2], routines[3], routines[4]))
@@ -19,6 +20,7 @@ class Team:
         return self.routines[player_index]
 
 @dataclass
-class BothTeams:
-    t_side: Team
-    ct_side: Team
+class BothTeamsRoutines:
+    """A small, wrapper class for holding routine-tracking objects for both teams in a match."""
+    t_side: TeamRoutines
+    ct_side: TeamRoutines

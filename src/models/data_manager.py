@@ -5,7 +5,7 @@ from pydantic import TypeAdapter, ValidationError
 from models.player import Player
 from models.round_events import RoundActions
 from models.round_stats import RoundStats
-from models.team import BothTeams, Team
+from models.team_routines import BothTeamsRoutines, TeamRoutines
 from models.team_names import TeamNames
 from models.team_scores import TeamScore
 from models.side_type import SideType
@@ -167,7 +167,7 @@ class DataManager:
         frame = self.get_frame(round_index, frame_index)
         return self._get_players_from_team_from_frame(frame, team)
 
-    def get_all_team_routines(self, round_index: int, routine_length: FrameCount) -> BothTeams:
+    def get_all_team_routines(self, round_index: int, routine_length: FrameCount) -> BothTeamsRoutines:
         """Returns the routines for all players on both teams in the given round in the form of a BothTeams object."""
         frames = self._get_frames(round_index)
 
@@ -202,10 +202,10 @@ class DataManager:
                     continue
                 ct_side_routines[player_name].append(Routine(player_name, SideType.CT, self.get_map_name(), ct_side_positions[player_name]))
 
-        t_side = Team.from_routines_list(list(t_side_routines.values()))
-        ct_side = Team.from_routines_list(list(ct_side_routines.values()))
+        t_side = TeamRoutines.from_routines_list(list(t_side_routines.values()))
+        ct_side = TeamRoutines.from_routines_list(list(ct_side_routines.values()))
 
-        return BothTeams(
+        return BothTeamsRoutines(
             t_side=t_side,
             ct_side=ct_side
         )
