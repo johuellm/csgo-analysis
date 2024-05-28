@@ -6,8 +6,7 @@ from awpy.visualization.plot import plot_map, position_transform
 from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.text import Text
-
-import numpy as np
+import matplotlib
 
 from models.data_manager import DataManager
 from models.position_tracker import PositionTracker
@@ -117,6 +116,43 @@ class VisualizationManager:
         scaled_visit_values = [count/most_common_routine_count for count in activity_surrounding_alive_player_tiles.values()]
 
         self.heatmap_path_collection = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=routine_tracker.tile_length, alpha=0.75, cmap='inferno', **kwargs)
+        return self.axes
+    
+    def draw_routine_heatmap_as_lines(self, routine_tracker: RoutineTracker, **kwargs) -> Axes:
+        """Draws a heatmap of player routines originating from each alive player on the map. `**kwargs` are passed to the `plot` function."""
+
+        alive_player_tiles: set[tuple[int, int]] = set()
+
+        player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index)
+        for player in (player_info_lists[SideType.T] + player_info_lists[SideType.CT]):
+            if player['isAlive'] is False:
+                continue
+            
+            tile_x = int(position_transform(self.dm.get_map_name(), player['x'], 'x') / routine_tracker.tile_length)
+            tile_y = int(position_transform(self.dm.get_map_name(), player['y'], 'y') / routine_tracker.tile_length)
+
+            alive_player_tiles.add((tile_x, tile_y))
+
+            routines_originating_from_player_tile = routine_tracker.tile_routine_counter[(tile_x, tile_y)]
+            print(f'{player["name"]} has {len(routines_originating_from_player_tile)} routines originating from tile ({tile_x}, {tile_y}).')
+
+        routines_from_alive_player_tiles: Counter[TilizedRoutine] = Counter()
+        for tile in alive_player_tiles:
+            routines_from_alive_player_tiles += routine_tracker.tile_routine_counter[tile]
+        
+        most_common_routine_count = max(routines_from_alive_player_tiles.values())
+        print(f'The most common routine count is {most_common_routine_count}.')
+        
+        colormap = matplotlib.colormaps['inferno'] # type: ignore
+        
+        for routine, count in routines_from_alive_player_tiles.items():
+            transformed_x = [(tile[0] + 0.5) * routine_tracker.tile_length for tile in zip(routine.tilized_x, routine.tilized_y)]
+            transformed_y = [(tile[1] + 0.5) * routine_tracker.tile_length for tile in zip(routine.tilized_x, routine.tilized_y)]
+            scaled_color_value = count/most_common_routine_count
+            color = colormap(1 - scaled_color_value)
+            print(f'Routine with count {count} has color {color} ({scaled_color_value}).')
+            self.lines.extend(self.axes.plot(transformed_x, transformed_y, color=color, **kwargs))
+        
         return self.axes
     
     def _clear_heatmap(self):

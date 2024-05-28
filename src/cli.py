@@ -50,7 +50,8 @@ def test_routine_heatmap():
     vizm.draw_round_start(0)
     for _ in range(25):
         vizm.progress_visualization()
-    vizm.draw_routine_heatmap(tracker)
+    # vizm.draw_routine_heatmap(tracker)
+    vizm.draw_routine_heatmap_as_lines(tracker)
     vizm.render()
     input("Press Enter to end the program...")
 
