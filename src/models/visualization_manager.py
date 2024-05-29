@@ -145,6 +145,9 @@ class VisualizationManager:
         if self._routine_tracker is None:
             raise ValueError('Routine tracker is not set.')
 
+        # Clear any existing heatmap drawings
+        self._clear_routine_heatmap_drawings()
+
         alive_player_tiles: set[tuple[int, int]] = set()
 
         player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index)
@@ -179,6 +182,9 @@ class VisualizationManager:
         """Draws a heatmap of player routines originating from each alive player on the map based on the data in `self._routine_tracker`. `**kwargs` are passed to the `plot` function."""
         if self._routine_tracker is None:
             raise ValueError('Routine tracker is not set.')
+        
+        # Clear any existing heatmap drawings
+        self._clear_routine_heatmap_drawings()
 
         alive_player_tiles: set[tuple[int, int]] = set()
 
@@ -214,6 +220,11 @@ class VisualizationManager:
             self.routine_tracker_line_drawings.extend(self.axes.plot(transformed_x, transformed_y, color=color, **kwargs))
         
         return self.axes
+    
+    def clear_heatmap_drawings(self):
+        """Clears all heatmap-related drawings from the figure."""
+        self._clear_position_heatmap_drawings()
+        self._clear_routine_heatmap_drawings()
     
     def _clear_frame_related_drawings(self):
         """Clears all frame-related drawings (e.g. player positions, grenades - i.e. non-heatmap related drawings) from the figure."""
