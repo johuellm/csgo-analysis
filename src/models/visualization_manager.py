@@ -136,6 +136,8 @@ class VisualizationManager:
         This is separate from `_clear_all_drawings` because drawing and clearing heatmaps should be separate from drawing and clearing player positions."""
         if self.routine_tracker_tile_drawings is not None:
             self.routine_tracker_tile_drawings.remove()
+            self.routine_tracker_tile_drawings = None
+
         for line in self.routine_tracker_line_drawings:
             line.remove()
         self.routine_tracker_line_drawings.clear()
