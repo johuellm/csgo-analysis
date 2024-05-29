@@ -1,3 +1,4 @@
+from collections import defaultdict
 from awpy.types import Game, GameRound, GameFrame, PlayerInfo, BombInfo, GrenadeAction
 from pathlib import Path
 import json
@@ -177,27 +178,23 @@ class DataManager:
             for index in range(0, frame_count, chunk_size):
                 yield frames[index:min(index + chunk_size, frame_count)]
 
-        player_info_lists = self.get_player_info_lists(round_index, 0)
-        t_side_player_names = frozenset([player['name'] for player in player_info_lists[SideType.T]])
-        ct_side_player_names = frozenset([player['name'] for player in player_info_lists[SideType.CT]])
-
-        t_side_routines: dict[str, list[Routine]] = {player_name: list() for player_name in t_side_player_names}
-        ct_side_routines: dict[str, list[Routine]] = {player_name: list() for player_name in ct_side_player_names}  
+        t_side_routines: dict[str, list[Routine]] = defaultdict(list)
+        ct_side_routines: dict[str, list[Routine]] = defaultdict(list)
 
         for chunk in batch_frames(frames, routine_length):
-            t_side_positions: dict[str, list[tuple[float, float]]] = {player_name: list() for player_name in t_side_player_names}
-            ct_side_positions: dict[str, list[tuple[float, float]]] = {player_name: list() for player_name in ct_side_player_names}
+            t_side_positions: dict[str, list[tuple[float, float]]] = defaultdict(list)
+            ct_side_positions: dict[str, list[tuple[float, float]]] = defaultdict(list)
             for frame in chunk:
                 for player in self._get_players_from_team_from_frame(frame, SideType.T):
                     t_side_positions[player['name']].append((player['x'], player['y']))
                 for player in self._get_players_from_team_from_frame(frame, SideType.CT):
                     ct_side_positions[player['name']].append((player['x'], player['y']))
-            for player_name in t_side_player_names:
+            for player_name in t_side_positions:
                 # Sometimes we don't have data for every player in a frame - if we have no position data for a player for a whole routine-length, we don't want to create a routine for them
                 if len(t_side_positions[player_name]) == 0:
                     continue
                 t_side_routines[player_name].append(Routine(player_name, SideType.T, self.get_map_name(), t_side_positions[player_name]))
-            for player_name in ct_side_player_names:
+            for player_name in ct_side_positions:
                 # Same as above
                 if len(ct_side_positions[player_name]) == 0:
                     continue
