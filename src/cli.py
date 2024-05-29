@@ -2,7 +2,7 @@ from typing import Literal
 from models.data_manager import EXAMPLE_DEMO_PATH, DataManager
 from models.position_tracker import PositionTracker
 from models.routine import DEFAULT_ROUTINE_LENGTH
-from models.routine_tracker import RoutineTracker, TilizedRoutine, aggregate_routines_from_directory
+from models.routine_tracker import RoutineTracker, TilizedRoutine
 from models.visualization_manager import VisualizationManager
 from awpy.visualization.plot import position_transform
 
@@ -45,7 +45,7 @@ def test_routine_heatmap(do_aggregate_multiple_files: bool = False, heatmap_type
     data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
     tile_length = 20
     if do_aggregate_multiple_files:
-        tracker = aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=file_aggregation_limit)
+        tracker = RoutineTracker.aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=file_aggregation_limit)
     else:
         tracker = RoutineTracker(data_manager.get_map_name(), tile_length)
     for round_index in range(data_manager.get_round_count()):

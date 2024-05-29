@@ -5,6 +5,8 @@ import tkinter.ttk as ttk
 from tkinter import filedialog
 
 from models.data_manager import DataManager
+from models.position_tracker import PositionTracker
+from models.routine_tracker import RoutineTracker
 from models.side_type import SideType
 from models.visualization_manager import VisualizationManager
 
@@ -14,7 +16,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from awpy.visualization.plot import plot_map
 
 from tk_components.imports import CanvasTooltip
-from tk_components.subcomponents import PlayerInfoFrame
+from tk_components.subcomponents import HeatmapMenuButtonNames, PlayerInfoFrame
 
 # TODO: Re-create more Noesis functionality.
 # DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
@@ -113,7 +115,8 @@ class TopBarMenu(ttk.Frame):
     """Top bar menu for the application. Must be attached to root."""
     root: tk.Tk
     main_app: MainApplication
-
+    heatmap_menus: tk.Menu # This is a field as it needs to be accessed by other methods than just the constructor
+    
     def __init__(self, root: tk.Tk, main_app: MainApplication, *args, **kwargs):
         ttk.Frame.__init__(self, root, *args, **kwargs)
         self.root = root
@@ -131,6 +134,42 @@ class TopBarMenu(ttk.Frame):
         file_menu.add_command(label='Open', command=self.open_demo_file)
         file_menu.add_command(label='Exit', command=self.main_app.exit)
 
+        # TODO: Add some menu option to toggle the visibility of player routines (the dots trailing behind players) on the map.
+
+        # Heatmaps menu
+        # Every option in here should be disabled if there is no demo loaded (i.e. DataManager is None)
+        # 1. Generate PositionTracker object from current DataManager
+        # 2. Generate RoutineTracker object from current DataManager
+        # 3. Generate Tracker object from all demos in a directory
+        # ---
+        # 4. Display heatmap of player positions (via PositionTracker) (only possible if we've generated a PositionTracker object)
+        # 5. Display heatmap of player routines (via RoutineTracker) - as grid of tiles (only possible if we've generated a RoutineTracker object)
+        # 6. Display heatmap of player routines (via RoutineTracker) - as lines (only possible if we've generated a RoutineTracker object)
+        # ---
+        # 7. Clear all heatmaps (only possible if we've displayed a heatmap)
+
+        heatmap_menus = tk.Menu(top_bar, tearoff=0)
+        top_bar.add_cascade(label='Heatmaps', menu=heatmap_menus)
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, command=self.create_position_heatmap_from_current_demo)
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, command=self.create_routine_heatmap_from_current_demo)
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, command=self.create_routine_heatmap_from_demo_directory)
+        heatmap_menus.add_separator()
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, command=self.display_position_heatmap)
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, command=self.display_routine_tile_heatmap)
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, command=self.display_routine_line_heatmap)
+        heatmap_menus.add_separator()
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.CLEAR_HEATMAP.value, command=self.clear_heatmaps)
+
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
+
+        self.heatmap_menus = heatmap_menus
+
         self.pack(side='top', fill='x')
     
     def open_demo_file(self):
@@ -140,7 +179,113 @@ class TopBarMenu(ttk.Frame):
             # User cancelled the file dialog
             return
         file_path = Path(file_dialog_response)
-        self.main_app.load_file_and_reload(file_path) 
+        self.main_app.load_file_and_reload(file_path)
+
+        # Enable heatmap creation menu options
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.NORMAL)
+        # Ensure that the other options are disabled - this is for cases where the user loads a new demo file after generating a heatmap
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.DISABLED)
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.DISABLED)
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.DISABLED)
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
+
+    def create_position_heatmap_from_current_demo(self):
+        """Creates a heatmap of player positions from the current demo."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        tracker = PositionTracker.from_data_manager(self.main_app.dm, 20)
+        self.main_app.vm._position_tracker = tracker
+
+        # Enable position heatmap drawing
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.NORMAL)
+
+    def create_routine_heatmap_from_current_demo(self):
+        """Creates a heatmap of player routines from the current demo."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        tracker = RoutineTracker.from_data_manager(self.main_app.dm, 20)
+        self.main_app.vm._routine_tracker = tracker
+
+        # Enable routine heatmap drawing
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+
+    def create_routine_heatmap_from_demo_directory(self):
+        """Creates a heatmap of player routines from all demos in a directory."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+
+        file_dialog_response = filedialog.askdirectory(title='Select a directory containing CS:GO demo files')
+        if file_dialog_response == "":
+            # User cancelled the file dialog
+            return
+        directory_path = Path(file_dialog_response)
+        tracker = RoutineTracker.aggregate_routines_from_directory(directory_path, self.main_app.dm.get_map_name(), 20)
+        self.main_app.vm._routine_tracker = tracker
+
+        # Enable routine heatmap drawing
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+
+    def display_position_heatmap(self):
+        """Displays a heatmap of player positions."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        self.main_app.vm.draw_position_heatmap()
+        self.main_app.canvas.canvas.draw()
+
+        # Enable heatmap clearing
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
+
+    def display_routine_tile_heatmap(self):
+        """Displays a heatmap of player routines as a grid of tiles."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        self.main_app.vm.draw_routine_tile_heatmap()
+        self.main_app.canvas.canvas.draw()
+
+        # Enable heatmap clearing
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
+
+    def display_routine_line_heatmap(self):
+        """Displays a heatmap of player routines as lines."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        self.main_app.vm.draw_routine_line_heatmap()
+        self.main_app.canvas.canvas.draw()
+
+        # Enable heatmap clearing
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
+
+    def clear_heatmaps(self):
+        """Clears all heatmaps."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        self.main_app.vm.clear_heatmap_drawings()
+        self.main_app.canvas.canvas.draw()
+
+        # Disable heatmap clearing
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
 
 class CanvasPanel(ttk.Frame):
     """Panel for displaying plots."""

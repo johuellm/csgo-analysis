@@ -4,6 +4,7 @@ from awpy.types import PlayerInfo
 
 from models.side_type import SideType
 
+from enum import Enum
 
 class PlayerInfoFrame(ttk.Frame):
     """A frame that displays information about a player."""
@@ -60,3 +61,15 @@ class PlayerInfoFrame(ttk.Frame):
         hp_bar_width = int(self.winfo_width() * (hp / 100))
         self.health_bar_canvas.create_rectangle(0, 0, hp_bar_width, 5, fill=hp_bar_fill_color)
         self.health_bar_canvas.update()
+
+class HeatmapMenuButtonNames(Enum):
+    """The names of the buttons in the Heatmap menu enumified so we don't have to worry about the pitfalls of magic strings."""
+    GENERATE_POSITIONS_HEATMAP = 'Generate Positions Heatmap'
+    GENERATE_ROUTINES_HEATMAP = 'Generate Routines Heatmap'
+    GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY = 'Generate Routines Heatmap from Directory'
+
+    DRAW_POSITIONS_HEATMAP = 'Draw Positions Heatmap'
+    DRAW_ROUTINES_HEATMAP_LINES = 'Draw Routines Heatmap (Lines)'
+    DRAW_ROUTINES_HEATMAP_TILES = 'Draw Routines Heatmap (Tiles)'
+
+    CLEAR_HEATMAP = 'Clear Heatmap'
