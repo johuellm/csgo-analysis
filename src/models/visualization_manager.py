@@ -5,6 +5,7 @@ from matplotlib.axes import Axes
 from awpy.visualization.plot import plot_map, position_transform
 from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
+from matplotlib.quiver import Quiver
 from matplotlib.text import Text
 import matplotlib
 
@@ -35,7 +36,7 @@ class VisualizationManager:
     position_tracker_drawings: PathCollection | None
 
     _routine_tracker: RoutineTracker | None
-    routine_tracker_line_drawings: list[Line2D]
+    routine_tracker_line_drawings: list[Quiver]
     routine_tracker_tile_drawings: PathCollection | None
 
     def __init__(self, dm: DataManager, fig: Figure, axes: Axes):
@@ -118,7 +119,7 @@ class VisualizationManager:
         maximum_visit_count = max(self._position_tracker.tile_activity_counter.values())
         scaled_visit_values = [count/maximum_visit_count for count in self._position_tracker.tile_activity_counter.values()]
 
-        self.position_tracker_drawings = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=self._position_tracker._tile_length, alpha=0.5, cmap='inferno', **kwargs)
+        self.position_tracker_drawings = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=self._position_tracker._tile_length, alpha=0.5, cmap='YlOrRd', **kwargs)
         return self.axes
     
     @property
@@ -177,7 +178,7 @@ class VisualizationManager:
         most_common_routine_count = max(activity_surrounding_alive_player_tiles.values())
         scaled_visit_values = [count/most_common_routine_count for count in activity_surrounding_alive_player_tiles.values()]
 
-        self.routine_tracker_tile_drawings = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=self._routine_tracker.tile_length, alpha=0.75, cmap='inferno', **kwargs)
+        self.routine_tracker_tile_drawings = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=self._routine_tracker.tile_length, alpha=0.75, cmap='YlOrRd', **kwargs)
         return self.axes
     
     def draw_routine_line_heatmap(self, **kwargs) -> Axes:
@@ -211,15 +212,21 @@ class VisualizationManager:
         print(f'The most common routine count is {most_common_routine_count}.')
         
         # Pylance doesn't recognize the colormaps attribute of matplotlib, so I'm (begrudgingly) using a type ignore here.
-        colormap = matplotlib.colormaps['inferno'] # type: ignore
+        colormap = matplotlib.colormaps['YlOrRd'] # type: ignore
         
         for routine, count in routines_from_alive_player_tiles.items():
             transformed_x = [(tile[0] + 0.5) * self._routine_tracker.tile_length for tile in zip(routine.tilized_x, routine.tilized_y)]
             transformed_y = [(tile[1] + 0.5) * self._routine_tracker.tile_length for tile in zip(routine.tilized_x, routine.tilized_y)]
             scaled_color_value = count/most_common_routine_count
-            color = colormap(1 - scaled_color_value)
+            color = colormap(scaled_color_value)
             print(f'Routine with count {count} has color {color} ({scaled_color_value}).')
-            self.routine_tracker_line_drawings.extend(self.axes.plot(transformed_x, transformed_y, color=color, **kwargs))
+            # Draw arrows so we can see the direction of the routine
+            self.routine_tracker_line_drawings.append(
+                self.axes.quiver(
+                    transformed_x[:-1], transformed_y[:-1], [transformed_x[i+1] - transformed_x[i] for i in range(len(transformed_x) - 1)], [transformed_y[i+1] - transformed_y[i] for i in range(len(transformed_y) - 1)],
+                    color=color, width=0.0025, **kwargs
+                )
+            )
         
         return self.axes
     
