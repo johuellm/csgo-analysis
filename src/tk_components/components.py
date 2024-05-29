@@ -216,6 +216,7 @@ class TopBarMenu(ttk.Frame):
 
         # Enable routine heatmap drawing
         self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
 
     def create_routine_heatmap_from_demo_directory(self):
         """Creates a heatmap of player routines from all demos in a directory."""
@@ -234,6 +235,7 @@ class TopBarMenu(ttk.Frame):
 
         # Enable routine heatmap drawing
         self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
 
     def display_position_heatmap(self):
         """Displays a heatmap of player positions."""
