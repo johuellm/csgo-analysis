@@ -201,7 +201,7 @@ class VisualizationManager:
             alive_player_tiles.add((tile_x, tile_y))
 
             routines_originating_from_player_tile = self._routine_tracker.tile_routine_counter[(tile_x, tile_y)]
-            print(f'{player["name"]} has {len(routines_originating_from_player_tile)} routines originating from tile ({tile_x}, {tile_y}).')
+            print(f'From {player["name"]}\'s tile, ({tile_x}, {tile_y}), {len(routines_originating_from_player_tile)} routines start.')
 
         routines_from_alive_player_tiles: Counter[TilizedRoutine] = Counter()
         for tile in alive_player_tiles:
