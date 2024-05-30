@@ -116,7 +116,7 @@ class VisualizationManager:
         # To use a colormap, we need a list of values between 0 and 1. Matplotlib uses the colormap to map these values to colors.
         # We want tiles with more visits to be "hotter" - for most colormaps brighter colors are produced by values closer to 1.
         # To do this, we scale the visit counts using the maximum visit count to produce values within that range.
-        maximum_visit_count = max(self._position_tracker.tile_activity_counter.values())
+        maximum_visit_count = max(self._position_tracker.tile_activity_counter.values() or [1]) # If there are no visits, set the maximum visit count to 1 to avoid division by zero
         scaled_visit_values = [count/maximum_visit_count for count in self._position_tracker.tile_activity_counter.values()]
 
         self.position_tracker_drawings = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=self._position_tracker._tile_length, alpha=0.5, cmap='YlOrRd', **kwargs)
@@ -175,7 +175,7 @@ class VisualizationManager:
         transformed_x = [(tile[0] + 0.5) * self._routine_tracker.tile_length for tile in activity_surrounding_alive_player_tiles.keys()]
         transformed_y = [(tile[1] + 0.5) * self._routine_tracker.tile_length for tile in activity_surrounding_alive_player_tiles.keys()]
 
-        most_common_routine_count = max(activity_surrounding_alive_player_tiles.values())
+        most_common_routine_count = max(activity_surrounding_alive_player_tiles.values() or [1]) # If there are no routines, set the most common routine count to 1 to avoid division by zero
         scaled_visit_values = [count/most_common_routine_count for count in activity_surrounding_alive_player_tiles.values()]
 
         self.routine_tracker_tile_drawings = self.axes.scatter(transformed_x, transformed_y, c=scaled_visit_values, marker=MarkerStyle('s', 'full'), s=self._routine_tracker.tile_length, alpha=0.75, cmap='YlOrRd', **kwargs)
@@ -208,7 +208,7 @@ class VisualizationManager:
         for tile in alive_player_tiles:
             routines_from_alive_player_tiles += self._routine_tracker.tile_routine_counter[tile]
         
-        most_common_routine_count = max(routines_from_alive_player_tiles.values())
+        most_common_routine_count = max(routines_from_alive_player_tiles.values() or [1]) # If there are no routines, set the most common routine count to 1 to avoid division by zero
         print(f'The most common routine count is {most_common_routine_count}.')
         
         # Pylance doesn't recognize the colormaps attribute of matplotlib, so I'm (begrudgingly) using a type ignore here.
