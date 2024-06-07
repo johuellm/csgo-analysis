@@ -15,11 +15,6 @@ from models.routine import DEFAULT_ROUTINE_LENGTH, Routine
 from models.routine_tracker import RoutineTracker, TilizedRoutine
 from models.side_type import SideType
 
-# Hyperparameter for the number of frames in the past to include in the visualization. Currently set to the default routine length but there's no reason it has to be.
-# Probably shouldn't be much greater than 5 or so as the opacity calculations in the code drawing the frame will make the oldest frames almost invisible.
-# It's very doable to just change the opacity function if we want, though.
-VISUALIZED_ROUTINE_LENGTH = DEFAULT_ROUTINE_LENGTH
-
 class VisualizationManager:
     dm: DataManager
     fig: Figure
@@ -32,6 +27,9 @@ class VisualizationManager:
     path_collections: list[PathCollection] # Tracks scatter plot points for precise removal
     text: list[Text] # Tracks text for precise removal
 
+    visualized_routine_length: int
+    do_visualize_routines: bool
+
     _position_tracker: PositionTracker | None
     position_tracker_drawings: PathCollection | None
 
@@ -39,13 +37,18 @@ class VisualizationManager:
     routine_tracker_line_drawings: list[Quiver]
     routine_tracker_tile_drawings: PathCollection | None
 
-    def __init__(self, dm: DataManager, fig: Figure, axes: Axes):
+    def __init__(self, dm: DataManager, fig: Figure, axes: Axes, visualized_routine_length: int = DEFAULT_ROUTINE_LENGTH):
         self.dm = dm
         self.fig = fig
         self.axes = axes
         
         self.current_round_index = 0
         self.current_frame_index = 0
+
+        if visualized_routine_length < 0:
+            raise ValueError('Visualized routine length cannot be negative.')
+        self.visualized_routine_length = visualized_routine_length
+        self.do_visualize_routines = False
 
         self.lines = list()
         self.path_collections = list()
@@ -82,6 +85,10 @@ class VisualizationManager:
 
         self.lines.extend(self.axes.plot(transformed_x, transformed_y, fmt, **kwargs))
         return self.axes
+    
+    def toggle_routine_visualization(self):
+        """Toggles whether routines are visualized or not."""
+        self.do_visualize_routines = not self.do_visualize_routines
     
     @property
     def position_tracker(self) -> PositionTracker | None:
@@ -250,7 +257,7 @@ class VisualizationManager:
         self.text.clear()
 
     def _draw_frame(self) -> Axes:
-        """Draws the positions of players at the current frame. Raises a ValueError if the current round index or the current frame index is out of bounds."""
+        """Draws the current frame. Raises a ValueError if the current round index or the current frame index is out of bounds."""
         max_rounds = self.dm.get_round_count()
         max_frames = self.dm.get_frame_count(self.current_round_index)
         if self.current_round_index >= max_rounds:
@@ -262,23 +269,30 @@ class VisualizationManager:
 
         map_name = self.dm.get_map_name()
 
-        # Plot player positions up to VISUALIZED_ROUTINE_LENGTH frames back (VISUALIZED_ROUTINE_LENGTH + 1 frames total). Plot previous frames with decreasing opacity.
-        for frame_index_subtrahend in range(0, VISUALIZED_ROUTINE_LENGTH + 1):
+        # I wanted a function that for x = 0 returned 1, decreased linearly for a while, then asymptotically approached 0.
+        # I wanted this behavior because it means extremely long routines won't be too cluttered as the oldest frames will be almost invisible, 
+        # but I also wanted a clear, steady decrease of opacity for the most recent frames in the routine.
+        alpha_function = lambda x: max(1 - 0.1*x, 1/(x + 1))
+
+        routine_length = self.visualized_routine_length if self.do_visualize_routines else 0
+        for frame_index_subtrahend in range(0, routine_length + 1):
             # Ensure we don't try to access a frame index that doesn't exist
             if self.current_frame_index - frame_index_subtrahend < 0:
                 break
-            
-            player_info_lists = self.dm.get_player_info_lists(self.current_round_index, self.current_frame_index - frame_index_subtrahend)
+
+            frame_index = self.current_frame_index - frame_index_subtrahend
+
+            player_info_lists = self.dm.get_player_info_lists(self.current_round_index, frame_index)
             t_side_players = player_info_lists[SideType.T]
             ct_side_players = player_info_lists[SideType.CT]
 
             transformed_t_x = [position_transform(map_name, player['x'], 'x') for player in t_side_players]
             transformed_t_y = [position_transform(map_name, player['y'], 'y') for player in t_side_players]
-            self.path_collections.append(self.axes.scatter(transformed_t_x, transformed_t_y, c='goldenrod', alpha=(1 - 0.1*frame_index_subtrahend)))
+            self.path_collections.append(self.axes.scatter(transformed_t_x, transformed_t_y, c='goldenrod', alpha=alpha_function(frame_index_subtrahend)))
 
             transformed_ct_x = [position_transform(map_name, player['x'], 'x') for player in ct_side_players]
             transformed_ct_y = [position_transform(map_name, player['y'], 'y') for player in ct_side_players]
-            self.path_collections.append(self.axes.scatter(transformed_ct_x, transformed_ct_y, c='lightblue', alpha=(1 - 0.1*frame_index_subtrahend)))
+            self.path_collections.append(self.axes.scatter(transformed_ct_x, transformed_ct_y, c='lightblue', alpha=alpha_function(frame_index_subtrahend)))
 
             # Draw player names only for the most recent frame
             if frame_index_subtrahend == 0:

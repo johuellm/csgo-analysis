@@ -62,6 +62,11 @@ class PlayerInfoFrame(ttk.Frame):
         self.health_bar_canvas.create_rectangle(0, 0, hp_bar_width, 5, fill=hp_bar_fill_color)
         self.health_bar_canvas.update()
 
+class RoutineMenuButtonNames(Enum):
+    """The names of the buttons in the Routine menu enumified so we don't have to worry about the pitfalls of magic strings."""
+    TOGGLE_ROUTINE_VISUALIZATION = 'Toggle Routine Visualization'
+    SET_ROUTINE_LENGTH = 'Set Routine Length'
+
 class HeatmapMenuButtonNames(Enum):
     """The names of the buttons in the Heatmap menu enumified so we don't have to worry about the pitfalls of magic strings."""
     GENERATE_POSITIONS_HEATMAP = 'Generate Positions Heatmap'

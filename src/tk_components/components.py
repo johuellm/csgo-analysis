@@ -1,6 +1,8 @@
 import functools
 from pathlib import Path
 import tkinter as tk
+from tkinter import simpledialog
+from tkinter import messagebox
 import tkinter.ttk as ttk
 from tkinter import filedialog
 
@@ -16,7 +18,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from awpy.visualization.plot import plot_map
 
 from tk_components.imports import CanvasTooltip
-from tk_components.subcomponents import HeatmapMenuButtonNames, PlayerInfoFrame
+from tk_components.subcomponents import HeatmapMenuButtonNames, PlayerInfoFrame, RoutineMenuButtonNames
 
 # TODO: Re-create more Noesis functionality.
 # DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
@@ -115,7 +117,9 @@ class TopBarMenu(ttk.Frame):
     """Top bar menu for the application. Must be attached to root."""
     root: tk.Tk
     main_app: MainApplication
-    heatmap_menus: tk.Menu # This is a field as it needs to be accessed by other methods than just the constructor
+    # Certain Menu objects need to be fields as they need to be accessed by other methods than just the constructor
+    routine_menu: tk.Menu
+    heatmap_menu: tk.Menu
     
     def __init__(self, root: tk.Tk, main_app: MainApplication, *args, **kwargs):
         ttk.Frame.__init__(self, root, *args, **kwargs)
@@ -129,12 +133,25 @@ class TopBarMenu(ttk.Frame):
         self.root.config(menu=top_bar)
 
         # Create File menu
-        file_menu = tk.Menu(top_bar, tearoff=0)
+        file_menu = tk.Menu(top_bar, tearoff=False)
         top_bar.add_cascade(label='File', menu=file_menu)
         file_menu.add_command(label='Open', command=self.open_demo_file)
         file_menu.add_command(label='Exit', command=self.main_app.exit)
 
-        # TODO: Add some menu option to toggle the visibility of player routines (the dots trailing behind players) on the map.
+        # Routine menu
+        # All only possible if a demo is loaded
+        # 1. Toggle routine visibility
+        # 2. Set routine length
+
+        routine_menu = tk.Menu(top_bar, tearoff=False)
+        top_bar.add_cascade(label='Routines', menu=routine_menu)
+        routine_menu.add_command(label=RoutineMenuButtonNames.TOGGLE_ROUTINE_VISUALIZATION.value, command=self.toggle_routine_visibility)
+        routine_menu.add_command(label=RoutineMenuButtonNames.SET_ROUTINE_LENGTH.value, command=self.ask_for_desired_routine_length)
+
+        routine_menu.entryconfigure(RoutineMenuButtonNames.TOGGLE_ROUTINE_VISUALIZATION.value, state=tk.DISABLED)
+        routine_menu.entryconfigure(RoutineMenuButtonNames.SET_ROUTINE_LENGTH.value, state=tk.DISABLED)
+
+        self.routine_menu = routine_menu
 
         # Heatmaps menu
         # Every option in here should be disabled if there is no demo loaded (i.e. DataManager is None)
@@ -148,7 +165,7 @@ class TopBarMenu(ttk.Frame):
         # ---
         # 7. Clear all heatmaps (only possible if we've displayed a heatmap)
 
-        heatmap_menus = tk.Menu(top_bar, tearoff=0)
+        heatmap_menus = tk.Menu(top_bar, tearoff=False)
         top_bar.add_cascade(label='Heatmaps', menu=heatmap_menus)
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, command=self.create_position_heatmap_from_current_demo)
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, command=self.create_routine_heatmap_from_current_demo)
@@ -168,7 +185,7 @@ class TopBarMenu(ttk.Frame):
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
 
-        self.heatmap_menus = heatmap_menus
+        self.heatmap_menu = heatmap_menus
 
         self.pack(side='top', fill='x')
     
@@ -181,15 +198,46 @@ class TopBarMenu(ttk.Frame):
         file_path = Path(file_dialog_response)
         self.main_app.load_file_and_reload(file_path)
 
+        # Enable routine menu options
+        self.routine_menu.entryconfigure(RoutineMenuButtonNames.TOGGLE_ROUTINE_VISUALIZATION.value, state=tk.NORMAL)
+        self.routine_menu.entryconfigure(RoutineMenuButtonNames.SET_ROUTINE_LENGTH.value, state=tk.NORMAL)
+
         # Enable heatmap creation menu options
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.NORMAL)
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.NORMAL)
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.NORMAL)
         # Ensure that the other options are disabled - this is for cases where the user loads a new demo file after generating a heatmap
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.DISABLED)
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.DISABLED)
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.DISABLED)
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.DISABLED)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.DISABLED)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.DISABLED)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
+    
+    def toggle_routine_visibility(self):
+        """Toggles the visibility of player routines on the map."""
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        self.main_app.vm.toggle_routine_visualization()
+        self.main_app.vm.revisualize()
+        self.main_app.canvas.canvas.draw()
+    
+    def ask_for_desired_routine_length(self):
+        """Prompts the user for a desired routine length and sets the VisualizationManager's routine length to that value."""
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        response = simpledialog.askinteger('Set Routine Length', 'Enter the desired routine length (in frames):', initialvalue=self.main_app.vm.visualized_routine_length)
+        if response is not None:
+            if response <= 0:
+                messagebox.showerror('Invalid Routine Length', 'Routine length must be greater than 0.')
+                return
+            self.main_app.vm.visualized_routine_length = response
+
+            # I imagine that if someone is changing the routine length, they want to see the routines
+            self.main_app.vm.do_visualize_routines = True
+            
+            self.main_app.vm.revisualize()
+            self.main_app.canvas.canvas.draw()
 
     def create_position_heatmap_from_current_demo(self):
         """Creates a heatmap of player positions from the current demo."""
@@ -202,7 +250,7 @@ class TopBarMenu(ttk.Frame):
         self.main_app.vm._position_tracker = tracker
 
         # Enable position heatmap drawing
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.NORMAL)
 
     def create_routine_heatmap_from_current_demo(self):
         """Creates a heatmap of player routines from the current demo."""
@@ -215,8 +263,8 @@ class TopBarMenu(ttk.Frame):
         self.main_app.vm._routine_tracker = tracker
 
         # Enable routine heatmap drawing
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
 
     def create_routine_heatmap_from_demo_directory(self):
         """Creates a heatmap of player routines from all demos in a directory."""
@@ -234,8 +282,8 @@ class TopBarMenu(ttk.Frame):
         self.main_app.vm._routine_tracker = tracker
 
         # Enable routine heatmap drawing
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
 
     def display_position_heatmap(self):
         """Displays a heatmap of player positions."""
@@ -248,7 +296,7 @@ class TopBarMenu(ttk.Frame):
         self.main_app.canvas.canvas.draw()
 
         # Enable heatmap clearing
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
 
     def display_routine_tile_heatmap(self):
         """Displays a heatmap of player routines as a grid of tiles."""
@@ -261,7 +309,7 @@ class TopBarMenu(ttk.Frame):
         self.main_app.canvas.canvas.draw()
 
         # Enable heatmap clearing
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
 
     def display_routine_line_heatmap(self):
         """Displays a heatmap of player routines as lines."""
@@ -274,7 +322,7 @@ class TopBarMenu(ttk.Frame):
         self.main_app.canvas.canvas.draw()
 
         # Enable heatmap clearing
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.NORMAL)
 
     def clear_heatmaps(self):
         """Clears all heatmaps."""
@@ -287,7 +335,7 @@ class TopBarMenu(ttk.Frame):
         self.main_app.canvas.canvas.draw()
 
         # Disable heatmap clearing
-        self.heatmap_menus.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
 
 class CanvasPanel(ttk.Frame):
     """Panel for displaying plots."""
