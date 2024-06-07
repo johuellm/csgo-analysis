@@ -69,6 +69,9 @@ class RoutineMenuButtonNames(Enum):
 
 class HeatmapMenuButtonNames(Enum):
     """The names of the buttons in the Heatmap menu enumified so we don't have to worry about the pitfalls of magic strings."""
+    SAVE_HEATMAP_FILE = 'Save Routine Heatmap File'
+    LOAD_HEATMAP_FILE = 'Load Routine Heatmap File'
+    
     GENERATE_POSITIONS_HEATMAP = 'Generate Positions Heatmap'
     GENERATE_ROUTINES_HEATMAP = 'Generate Routines Heatmap'
     GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY = 'Generate Routines Heatmap from Directory'

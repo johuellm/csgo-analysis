@@ -1,10 +1,12 @@
-import functools
-from pathlib import Path
 import tkinter as tk
 from tkinter import simpledialog
 from tkinter import messagebox
 import tkinter.ttk as ttk
 from tkinter import filedialog
+
+import functools
+from pathlib import Path
+import pickle
 
 from models.data_manager import DataManager
 from models.position_tracker import PositionTracker
@@ -155,9 +157,12 @@ class TopBarMenu(ttk.Frame):
 
         # Heatmaps menu
         # Every option in here should be disabled if there is no demo loaded (i.e. DataManager is None)
+        # Save RoutineTracker as file (pickle) (only possible if we've generated a RoutineTracker)
+        # Load RoutineTracker from file (pickle)
+        # ---
         # 1. Generate PositionTracker object from current DataManager
         # 2. Generate RoutineTracker object from current DataManager
-        # 3. Generate Tracker object from all demos in a directory
+        # 3. Generate RoutineTracker object from all demos in a directory
         # ---
         # 4. Display heatmap of player positions (via PositionTracker) (only possible if we've generated a PositionTracker object)
         # 5. Display heatmap of player routines (via RoutineTracker) - as grid of tiles (only possible if we've generated a RoutineTracker object)
@@ -167,6 +172,9 @@ class TopBarMenu(ttk.Frame):
 
         heatmap_menus = tk.Menu(top_bar, tearoff=False)
         top_bar.add_cascade(label='Heatmaps', menu=heatmap_menus)
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.SAVE_HEATMAP_FILE.value, command=self.save_routine_heatmap_file)
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.LOAD_HEATMAP_FILE.value, command=self.load_routine_heatmap_file)
+        heatmap_menus.add_separator()
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, command=self.create_position_heatmap_from_current_demo)
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, command=self.create_routine_heatmap_from_current_demo)
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, command=self.create_routine_heatmap_from_demo_directory)
@@ -177,6 +185,8 @@ class TopBarMenu(ttk.Frame):
         heatmap_menus.add_separator()
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.CLEAR_HEATMAP.value, command=self.clear_heatmaps)
 
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.SAVE_HEATMAP_FILE.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.LOAD_HEATMAP_FILE.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.DISABLED)
@@ -202,7 +212,9 @@ class TopBarMenu(ttk.Frame):
         self.routine_menu.entryconfigure(RoutineMenuButtonNames.TOGGLE_ROUTINE_VISUALIZATION.value, state=tk.NORMAL)
         self.routine_menu.entryconfigure(RoutineMenuButtonNames.SET_ROUTINE_LENGTH.value, state=tk.NORMAL)
 
-        # Enable heatmap creation menu options
+        # Enable the heatmap menu options that require a demo to be loaded
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.LOAD_HEATMAP_FILE.value, state=tk.NORMAL)
+
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.NORMAL)
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.NORMAL)
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.NORMAL)
@@ -238,6 +250,54 @@ class TopBarMenu(ttk.Frame):
             
             self.main_app.vm.revisualize()
             self.main_app.canvas.canvas.draw()
+    
+    def save_routine_heatmap_file(self):
+        """Prompts the user for a file path and saves the routine heatmap data to a file."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        if self.main_app.vm._routine_tracker is None:
+            messagebox.showerror('No Routine Heatmap Data', 'No routine heatmap data has been generated to save.')
+            return
+        
+        initial_file_name = f'{self.main_app.dm.get_map_name()}.rhd'
+        file_dialog_response = filedialog.asksaveasfilename(title='Save Routine Heatmap Data', filetypes=[('Routine Heatmap Data files', '*.rhd'), ('All files', '*.*')], initialfile=initial_file_name)
+        if file_dialog_response == "":
+            # User cancelled the file dialog
+            return
+        file_path = Path(file_dialog_response)
+        with file_path.open('wb') as output_file:
+            pickle.dump(self.main_app.vm._routine_tracker, output_file)
+        messagebox.showinfo('Routine Heatmap Data Saved', 'Routine heatmap data saved successfully.')
+
+    def load_routine_heatmap_file(self):
+        """Asks the user for a file path and loads a routine heatmap file."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+        
+        file_dialog_response = filedialog.askopenfilename(title='Load Routine Heatmap Data', filetypes=[('Routine Heatmap Data files', '*.rhd'), ('All files', '*.*')])
+        if file_dialog_response == "":
+            # User cancelled the file dialog
+            return
+        file_path = Path(file_dialog_response)
+        with file_path.open('rb') as input_file:
+            routine_tracker = pickle.load(input_file)
+        if not isinstance(routine_tracker, RoutineTracker):
+            messagebox.showerror('Invalid File', 'The loaded file did not contain valid routine heatmap data. Cancelled loading operation.')
+            raise ValueError('Loaded file is not a RoutineTracker object.')
+        if routine_tracker.map_name != self.main_app.dm.get_map_name():
+            messagebox.showerror('Map Mismatch', f'The loaded routine heatmap data is for a different map ({routine_tracker.map_name}) than the currently loaded demo ({self.main_app.dm.get_map_name()}). Cancelled loading operation.')
+            raise ValueError('Loaded RoutineTracker object is for a different map.')
+        self.main_app.vm._routine_tracker = routine_tracker
+        messagebox.showinfo('Routine Heatmap Data Loaded', 'Routine heatmap data loaded successfully.')
+
+        # Enable routine heatmap drawing
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
 
     def create_position_heatmap_from_current_demo(self):
         """Creates a heatmap of player positions from the current demo."""
@@ -266,6 +326,9 @@ class TopBarMenu(ttk.Frame):
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
 
+        # Enable heatmap saving
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.SAVE_HEATMAP_FILE.value, state=tk.NORMAL)
+
     def create_routine_heatmap_from_demo_directory(self):
         """Creates a heatmap of player routines from all demos in a directory."""
         if self.main_app.dm is None:
@@ -284,6 +347,9 @@ class TopBarMenu(ttk.Frame):
         # Enable routine heatmap drawing
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
+
+        # Enable heatmap saving
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.SAVE_HEATMAP_FILE.value, state=tk.NORMAL)
 
     def display_position_heatmap(self):
         """Displays a heatmap of player positions."""
