@@ -23,7 +23,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from awpy.visualization.plot import plot_map
 
 from tk_components.imports import CanvasTooltip
-from tk_components.subcomponents import HeatmapMenuButtonNames, PlayerInfoFrame, RoutineMenuButtonNames
+from tk_components.subcomponents import HeatmapMenuButtonNames, PlayerInfoFrame, RoutineMenuButtonNames, FrameWithScrollableInnerFrame
 
 # TODO: Re-create more Noesis functionality.
 # DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
@@ -376,15 +376,8 @@ class TopBarMenu(ttk.Frame):
         composition_info_window.focus()
         composition_info_window.grab_set() # Prevent interaction with the main window while this window is open - this is so that the user doesn't modify the RoutineTracker object while viewing its composition info
 
-        frame_container = ttk.Frame(composition_info_window)
-        canvas = tk.Canvas(frame_container)
-        scrollbar = ttk.Scrollbar(frame_container, orient='vertical', command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-
-        scrollable_frame.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
-
-        canvas.create_window((0, 0), window=scrollable_frame, anchor='nw')
-        canvas.configure(yscrollcommand=scrollbar.set)
+        scrolling_frame_container = FrameWithScrollableInnerFrame(composition_info_window)
+        scrollable_frame = scrolling_frame_container.scrollable_frame
 
         def show_file_in_explorer(path: Path):
             """Opens the system's native file explorer to the given path's directory and selects it."""
@@ -419,10 +412,9 @@ class TopBarMenu(ttk.Frame):
                     # So, make this cell look clickable
                     field_label.config(fg='blue', cursor='hand2', relief='raised', font=('Arial', 12, 'underline'))
                     field_label.bind('<Button-1>', lambda e, path=demo_metadata.path: show_file_in_explorer(path)) # The path is a parameter to the lambda function so that it is captured by the closure - otherwise, the lambda function would use the last value of `path` in the loop
-        
-        frame_container.pack(side='top', fill='both', expand=True)
-        canvas.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
+
+        scrollable_frame.pack(fill='both', expand=True)
+        scrolling_frame_container.pack(fill='both', expand=True)
 
     def display_position_heatmap(self):
         """Displays a heatmap of player positions."""
