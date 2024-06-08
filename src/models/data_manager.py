@@ -37,15 +37,17 @@ def _load_game_data(file_path: Path, do_validate: bool = True) -> Game:
             raise e
 
 class DataManager:
+    """Wrapper around an awpy-generated Game object. Function calls replace direct dictionary access, including some error handling."""
+    file_path: Path # Path to the demo file being parsed by awpy
     data: Game
 
-    def __init__(self, data: Game):
-        self.data = data
+    def __init__(self, file_path: Path, do_validate: bool = True):
+        self.file_path = file_path
+        self.data = _load_game_data(file_path, do_validate)
 
-    @classmethod
-    def from_file(cls, file_path: Path, do_validate: bool = True):
-        """Create a DataManager object from a JSON file containing a Game. If `do_validate` is True, the data will be validated against the Game schema."""
-        return cls(_load_game_data(file_path, do_validate))
+    def get_match_id(self) -> str | None:
+        """Returns the match ID of the Game object, or None if no match ID is found."""
+        return self.data.get('matchID', None)
     
     def _get_game_rounds(self) -> list[GameRound]:
         """Returns the list of GameRound objects in the Game object. If there are no game rounds, raises a ValueError."""

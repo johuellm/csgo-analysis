@@ -2,6 +2,7 @@ from collections import defaultdict, Counter
 from pathlib import Path
 from typing import overload
 from models.data_manager import DataManager, get_map_name_from_demo_file_without_parsing
+from models.demo_metadata import DemoMetadata
 from models.routine import DEFAULT_ROUTINE_LENGTH, FrameCount, Routine
 from awpy.visualization.plot import position_transform
 
@@ -65,12 +66,14 @@ class RoutineTracker:
     _tile_length: int
     _routine_length: int
     _tile_routine_counter: defaultdict[tuple[int, int], Counter[TilizedRoutine]] # A mapping from tile coordinates to a Counter object for tracking the number of times a routine starting from that tile has been counted.
+    _metadata: list[DemoMetadata] # Metadata for the demos that the routines were extracted from.
 
     def __init__(self, map_name: str, tile_length: int, routine_length: int = DEFAULT_ROUTINE_LENGTH):
         self._map_name = map_name
         self._tile_length = tile_length
         self._routine_length = routine_length
         self._tile_routine_counter = defaultdict(Counter)
+        self._metadata = list()
     
     @classmethod
     def from_data_manager(cls, dm: DataManager, tile_length: int, routine_length: FrameCount = DEFAULT_ROUTINE_LENGTH) -> 'RoutineTracker':
@@ -82,8 +85,9 @@ class RoutineTracker:
                 for player_routines in team.routines:
                     for routine in player_routines:
                         tracker.add_routine(TilizedRoutine(routine, tile_length))
+        tracker._metadata = [DemoMetadata.from_data_manager(dm)]
         return tracker
-    
+
     @classmethod
     def aggregate_routines_from_directory(cls, directory_path: Path, map_name: str, tile_length: int, routine_length: FrameCount = DEFAULT_ROUTINE_LENGTH, limit: int | None = None) -> 'RoutineTracker':
         """Aggregates all the routines from a directory of demo files into a single RoutineTracker object.
@@ -103,7 +107,7 @@ class RoutineTracker:
                     continue
 
                 try:
-                    dm = DataManager.from_file(file_path, do_validate=False)
+                    dm = DataManager(file_path, do_validate=False)
                 except Exception as e:
                     print(f"Error loading file {file_path}: {e}")
                     files_processed += 1
@@ -139,6 +143,11 @@ class RoutineTracker:
         """The dictionary mapping tile coordinates to Counter objects that keep track of how many times each routine was taken from that tile."""
         return self._tile_routine_counter
     
+    @property
+    def metadata(self) -> list[DemoMetadata]:
+        """The metadata for the demos that the routines were extracted from."""
+        return self._metadata
+    
     def add_routine(self, routine: TilizedRoutine) -> int:
         """Increments the counter for the tile that the given routine's starting position falls into. 
         The position values stored in the routine object are assumed to be transformed into the map's coordinate system via the position_transform function from the awpy module.
@@ -153,7 +162,7 @@ class RoutineTracker:
         return sum(sum(counter.values()) for counter in self._tile_routine_counter.values())
     
     def __add__(self, other: 'RoutineTracker') -> 'RoutineTracker':
-        """Combines two RoutineTracker objects by adding their tile_routine_counter attributes together."""
+        """Combines two RoutineTracker objects by adding their tile_routine_counter attributes together and combining the metadata lists."""
         if self._map_name != other.map_name or self._tile_length != other.tile_length or self._routine_length != other.routine_length:
             raise ValueError("RoutineTrackers must be for the same map, have identical tile lengths, and have identical routine lengths to be combined.")
         combined_tracker = RoutineTracker(self._map_name, self._tile_length, self._routine_length)
@@ -161,5 +170,5 @@ class RoutineTracker:
             combined_tracker._tile_routine_counter[tile] += counter
         for tile, counter in other.tile_routine_counter.items():
             combined_tracker._tile_routine_counter[tile] += counter
+        combined_tracker._metadata = self._metadata + other._metadata
         return combined_tracker
-    

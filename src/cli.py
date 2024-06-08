@@ -8,7 +8,7 @@ from awpy.visualization.plot import position_transform
 
 def test_routine_drawing():
     """Test drawing a routine from the example demo file."""
-    dm = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
+    dm = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
     vizm = VisualizationManager.from_data_manager(dm)
 
     team_routines = dm.get_all_team_routines(16, DEFAULT_ROUTINE_LENGTH)
@@ -24,7 +24,7 @@ def test_routine_drawing():
 
 def test_heatmap_generation():
     """Test generating and visualizing a heatmap of player positions throughout the game from the example demo file."""
-    data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
+    data_manager = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
     tracker = PositionTracker(data_manager.get_map_name(), 20)
     for round_index in range(data_manager.get_round_count()):
         for frame_index in range(data_manager.get_frame_count(round_index)):
@@ -42,7 +42,7 @@ def test_routine_heatmap(do_aggregate_multiple_files: bool = False, heatmap_type
     """Test generating and visualizing a heatmap of player routines throughout the game from the example demo file.
     Can optionally aggregate routines from multiple demo files in a directory.
     The heatmap can be drawn with either tiles or lines."""
-    data_manager = DataManager.from_file(EXAMPLE_DEMO_PATH, do_validate=False)
+    data_manager = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
     tile_length = 20
     if do_aggregate_multiple_files:
         tracker = RoutineTracker.aggregate_routines_from_directory(EXAMPLE_DEMO_PATH.parent / 'lan', data_manager.get_map_name(), tile_length, routine_length=DEFAULT_ROUTINE_LENGTH, limit=file_aggregation_limit)

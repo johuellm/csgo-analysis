@@ -76,6 +76,8 @@ class HeatmapMenuButtonNames(Enum):
     GENERATE_ROUTINES_HEATMAP = 'Generate Routines Heatmap'
     GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY = 'Generate Routines Heatmap from Directory'
 
+    VIEW_ROUTINE_HEATMAP_COMPOSITION_INFO = 'View List of Demos Used in Heatmap Creation'
+
     DRAW_POSITIONS_HEATMAP = 'Draw Positions Heatmap'
     DRAW_ROUTINES_HEATMAP_LINES = 'Draw Routines Heatmap (Lines)'
     DRAW_ROUTINES_HEATMAP_TILES = 'Draw Routines Heatmap (Tiles)'

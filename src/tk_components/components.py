@@ -73,7 +73,7 @@ class MainApplication(ttk.Frame):
     
     def load_file_and_reload(self, file_path: Path):
         """Re-initializes the DataManager, VisualizationManager, and relevant components after a new file is loaded."""
-        self.dm = DataManager.from_file(file_path, do_validate=False)
+        self.dm = DataManager(file_path, do_validate=False)
         self.vm = VisualizationManager.from_data_manager(self.dm)
         self.canvas.draw_current_map()
         self.round_select_bar.update_round_list()
@@ -160,15 +160,17 @@ class TopBarMenu(ttk.Frame):
         # Save RoutineTracker as file (pickle) (only possible if we've generated a RoutineTracker)
         # Load RoutineTracker from file (pickle)
         # ---
-        # 1. Generate PositionTracker object from current DataManager
-        # 2. Generate RoutineTracker object from current DataManager
-        # 3. Generate RoutineTracker object from all demos in a directory
+        # Generate PositionTracker object from current DataManager
+        # Generate RoutineTracker object from current DataManager
+        # Generate RoutineTracker object from all demos in a directory
         # ---
-        # 4. Display heatmap of player positions (via PositionTracker) (only possible if we've generated a PositionTracker object)
-        # 5. Display heatmap of player routines (via RoutineTracker) - as grid of tiles (only possible if we've generated a RoutineTracker object)
-        # 6. Display heatmap of player routines (via RoutineTracker) - as lines (only possible if we've generated a RoutineTracker object)
+        # View list of demos contributing to the currently loaded RoutineTracker
         # ---
-        # 7. Clear all heatmaps (only possible if we've displayed a heatmap)
+        # Display heatmap of player positions (via PositionTracker) (only possible if we've generated a PositionTracker object)
+        # Display heatmap of player routines (via RoutineTracker) - as grid of tiles (only possible if we've generated a RoutineTracker object)
+        # Display heatmap of player routines (via RoutineTracker) - as lines (only possible if we've generated a RoutineTracker object)
+        # ---
+        # Clear all heatmaps (only possible if we've displayed a heatmap)
 
         heatmap_menus = tk.Menu(top_bar, tearoff=False)
         top_bar.add_cascade(label='Heatmaps', menu=heatmap_menus)
@@ -178,6 +180,8 @@ class TopBarMenu(ttk.Frame):
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, command=self.create_position_heatmap_from_current_demo)
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, command=self.create_routine_heatmap_from_current_demo)
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, command=self.create_routine_heatmap_from_demo_directory)
+        heatmap_menus.add_separator()
+        heatmap_menus.add_command(label=HeatmapMenuButtonNames.VIEW_ROUTINE_HEATMAP_COMPOSITION_INFO.value, command=self.view_routine_heatmap_composition_info)
         heatmap_menus.add_separator()
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, command=self.display_position_heatmap)
         heatmap_menus.add_command(label=HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, command=self.display_routine_tile_heatmap)
@@ -190,6 +194,7 @@ class TopBarMenu(ttk.Frame):
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.DISABLED)
+        heatmap_menus.entryconfigure(HeatmapMenuButtonNames.VIEW_ROUTINE_HEATMAP_COMPOSITION_INFO.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.DISABLED)
         heatmap_menus.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.DISABLED)
@@ -208,21 +213,21 @@ class TopBarMenu(ttk.Frame):
         file_path = Path(file_dialog_response)
         self.main_app.load_file_and_reload(file_path)
 
-        # Enable routine menu options
+        # Re-disable every non-File menu option (because we want Open and Exit to always be available)
+        for routine_menu_button in RoutineMenuButtonNames:
+            self.routine_menu.entryconfigure(routine_menu_button.value, state=tk.DISABLED)
+        for heatmap_menu_button in HeatmapMenuButtonNames:
+            self.heatmap_menu.entryconfigure(heatmap_menu_button.value, state=tk.DISABLED)
+
+        # Enable commands that only require a loaded DataManager
         self.routine_menu.entryconfigure(RoutineMenuButtonNames.TOGGLE_ROUTINE_VISUALIZATION.value, state=tk.NORMAL)
         self.routine_menu.entryconfigure(RoutineMenuButtonNames.SET_ROUTINE_LENGTH.value, state=tk.NORMAL)
 
-        # Enable the heatmap menu options that require a demo to be loaded
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.LOAD_HEATMAP_FILE.value, state=tk.NORMAL)
 
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_POSITIONS_HEATMAP.value, state=tk.NORMAL)
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP.value, state=tk.NORMAL)
         self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.GENERATE_ROUTINES_HEATMAP_FROM_DIRECTORY.value, state=tk.NORMAL)
-        # Ensure that the other options are disabled - this is for cases where the user loads a new demo file after generating a heatmap
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_POSITIONS_HEATMAP.value, state=tk.DISABLED)
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.DISABLED)
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.DISABLED)
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.CLEAR_HEATMAP.value, state=tk.DISABLED)
     
     def toggle_routine_visibility(self):
         """Toggles the visibility of player routines on the map."""
@@ -250,6 +255,13 @@ class TopBarMenu(ttk.Frame):
             
             self.main_app.vm.revisualize()
             self.main_app.canvas.canvas.draw()
+    
+    def _enable_menu_options_requiring_loaded_routine_tracker(self):
+        """Enables commands that require a loaded RoutineTracker object."""
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.SAVE_HEATMAP_FILE.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.VIEW_ROUTINE_HEATMAP_COMPOSITION_INFO.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
+        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
     
     def save_routine_heatmap_file(self):
         """Prompts the user for a file path and saves the routine heatmap data to a file."""
@@ -293,11 +305,9 @@ class TopBarMenu(ttk.Frame):
             messagebox.showerror('Map Mismatch', f'The loaded routine heatmap data is for a different map ({routine_tracker.map_name}) than the currently loaded demo ({self.main_app.dm.get_map_name()}). Cancelled loading operation.')
             raise ValueError('Loaded RoutineTracker object is for a different map.')
         self.main_app.vm._routine_tracker = routine_tracker
-        messagebox.showinfo('Routine Heatmap Data Loaded', 'Routine heatmap data loaded successfully.')
+        messagebox.showinfo('Routine Heatmap Data Loaded', f'Routine heatmap data loaded successfully, including data from {len(routine_tracker.metadata)} demos.')
 
-        # Enable routine heatmap drawing
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
+        self._enable_menu_options_requiring_loaded_routine_tracker()
 
     def create_position_heatmap_from_current_demo(self):
         """Creates a heatmap of player positions from the current demo."""
@@ -322,12 +332,7 @@ class TopBarMenu(ttk.Frame):
         tracker = RoutineTracker.from_data_manager(self.main_app.dm, 20)
         self.main_app.vm._routine_tracker = tracker
 
-        # Enable routine heatmap drawing
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
-
-        # Enable heatmap saving
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.SAVE_HEATMAP_FILE.value, state=tk.NORMAL)
+        self._enable_menu_options_requiring_loaded_routine_tracker()
 
     def create_routine_heatmap_from_demo_directory(self):
         """Creates a heatmap of player routines from all demos in a directory."""
@@ -344,12 +349,23 @@ class TopBarMenu(ttk.Frame):
         tracker = RoutineTracker.aggregate_routines_from_directory(directory_path, self.main_app.dm.get_map_name(), 20)
         self.main_app.vm._routine_tracker = tracker
 
-        # Enable routine heatmap drawing
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_TILES.value, state=tk.NORMAL)
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.DRAW_ROUTINES_HEATMAP_LINES.value, state=tk.NORMAL)
+        # TODO: Add a progress bar that displays during the aggregation process (can be the 'indeterminate' style, as we might not be able to have insight into the progress of `aggregate_routines_from_directory`)
+        messagebox.showinfo('Routine Heatmap Data Loaded', f'Routine heatmap data loaded successfully, including data from {len(tracker.metadata)} demos.')
 
-        # Enable heatmap saving
-        self.heatmap_menu.entryconfigure(HeatmapMenuButtonNames.SAVE_HEATMAP_FILE.value, state=tk.NORMAL)
+        self._enable_menu_options_requiring_loaded_routine_tracker()
+    
+    def view_routine_heatmap_composition_info(self):
+        """Displays a list of demos used in the creation of the current routine heatmap."""
+        if self.main_app.dm is None:
+            raise ValueError('DataManager not initialized.')
+        if self.main_app.vm is None:
+            raise ValueError('VisualizationManager not initialized.')
+
+        routine_tracker = self.main_app.vm._routine_tracker
+        if routine_tracker is not None:
+            print('Demos used in routine heatmap creation:')
+            for metadata in routine_tracker.metadata:
+                print(f' - {metadata.path.name}')
 
     def display_position_heatmap(self):
         """Displays a heatmap of player positions."""
