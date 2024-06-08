@@ -48,3 +48,15 @@ class DemoMetadata:
             ct_team_info=ct_info,
             t_team_info=t_info
         )
+
+    def get_fields_for_table(self) -> dict[str, str | int]:
+        """Returns a dictionary of fields that can be used to populate a table with the metadata."""
+        return {
+            'File Name': self.path.name,
+            # Excluding map because all demos in a directory should be for the same map.
+            'Round Count': self.round_count,
+            'Team 1 (CT Start)': self.ct_team_info.name,
+            'Team 1 Final Score': self.ct_team_info.ending_score,
+            'Team 2 (T Start)': self.t_team_info.name,
+            'Team 2 Final Score': self.t_team_info.ending_score
+        }

@@ -8,6 +8,9 @@ import functools
 from pathlib import Path
 import pickle
 
+import subprocess
+import sys
+
 from models.data_manager import DataManager
 from models.position_tracker import PositionTracker
 from models.routine_tracker import RoutineTracker
@@ -362,10 +365,64 @@ class TopBarMenu(ttk.Frame):
             raise ValueError('VisualizationManager not initialized.')
 
         routine_tracker = self.main_app.vm._routine_tracker
-        if routine_tracker is not None:
-            print('Demos used in routine heatmap creation:')
-            for metadata in routine_tracker.metadata:
-                print(f' - {metadata.path.name}')
+        if routine_tracker is None:
+            messagebox.showerror('No Routine Heatmap Data', 'No routine heatmap data is currently loaded. Cannot display composition info.')
+            raise ValueError('No RoutineTracker object loaded.')
+        
+        # Create a table of demo metadata and display it in a new window
+        composition_info_window = tk.Toplevel(self.root)
+        composition_info_window.title(f'Routine Heatmap Composition Info - {routine_tracker.map_name} - {len(routine_tracker.metadata)} Demos Used')
+        composition_info_window.geometry('1200x700')
+        composition_info_window.focus()
+        composition_info_window.grab_set() # Prevent interaction with the main window while this window is open - this is so that the user doesn't modify the RoutineTracker object while viewing its composition info
+
+        frame_container = ttk.Frame(composition_info_window)
+        canvas = tk.Canvas(frame_container)
+        scrollbar = ttk.Scrollbar(frame_container, orient='vertical', command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        def show_file_in_explorer(path: Path):
+            """Opens the system's native file explorer to the given path's directory and selects it."""
+            match sys.platform:
+                case 'win32':
+                    subprocess.Popen(['explorer', '/select,', path.absolute()])
+                case 'darwin':
+                    subprocess.Popen(['open', '--', path.absolute()]) # NOTE - I did not test this as I do not have a Mac
+                case 'linux':
+                    subprocess.Popen(['xdg-open', '--', path.absolute()]) # NOTE - I did not test this
+                case _:
+                    messagebox.showerror('Unsupported Platform', f'Opening native file explorer is not supported on platform {sys.platform}.')
+                    raise NotImplementedError(f'Opening native file explorer is not supported on platform {sys.platform}.')
+
+        # Get the first metadata object to get the fields for the table
+        table_fields = routine_tracker.metadata[0].get_fields_for_table().keys()
+        for i, field_key in enumerate(table_fields):
+            field_label = tk.Entry(scrollable_frame, font=('Arial', 12, 'bold'))
+            field_label.grid(row=0, column=i)
+            field_label.insert(tk.END, field_key)
+            field_label.config(state='readonly')
+
+        for i, demo_metadata in enumerate(routine_tracker.metadata, start=1):
+            for j, field_entry in enumerate(demo_metadata.get_fields_for_table().items()):
+                field_value = field_entry[1]
+                field_label = tk.Entry(scrollable_frame, font=('Arial', 12))
+                field_label.grid(row=i, column=j)
+                field_label.insert(tk.END, str(field_value))
+                field_label.config(state='readonly')
+                if field_entry[0] == 'File Name':
+                    # We want the file name to be clickable (opening the native file explorer to the file's directory and selecting it)
+                    # So, make this cell look clickable
+                    field_label.config(fg='blue', cursor='hand2', relief='raised', font=('Arial', 12, 'underline'))
+                    field_label.bind('<Button-1>', lambda e, path=demo_metadata.path: show_file_in_explorer(path)) # The path is a parameter to the lambda function so that it is captured by the closure - otherwise, the lambda function would use the last value of `path` in the loop
+        
+        frame_container.pack(side='top', fill='both', expand=True)
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
 
     def display_position_heatmap(self):
         """Displays a heatmap of player positions."""
