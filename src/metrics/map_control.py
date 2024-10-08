@@ -11,7 +11,16 @@ from awpy.visualization.plot import plot_map, _plot_map_control_from_dict
 from models.data_manager import DataManager
 
 
-def process_map_control_frame(dm: DataManager, round_idx: int, frame_idx: int):
+
+
+def process_map_control_frame(dm: DataManager, round_idx: int, frame_idx: int, area_threshold: float, steps: int):
+  """
+  Args:
+    area_threshold(float): maximum share of the map a single player can control (by area).
+                           default is area_threshold = 1 / 20.
+    steps(int): number of steps to use for BFS search in identifying neighboring area tiles.
+                default is steps = 10
+  """
   print("Calculating metrics for round %d" % round_idx)
   testframe = dm.get_frame(round_idx, frame_idx)
   map_name = dm.get_map_name()
@@ -49,8 +58,8 @@ def process_map_control_frame(dm: DataManager, round_idx: int, frame_idx: int):
   ]
 
   # use breadh-first-search to identify map control
-  t_control_values = _bfs(map_name, t_tiles, tile_to_neighbors, 1 / 20, 10)
-  ct_control_values = _bfs(map_name, ct_tiles, tile_to_neighbors, 1 / 20, 10)
+  t_control_values = _bfs(map_name, t_tiles, tile_to_neighbors, area_threshold, steps)
+  ct_control_values = _bfs(map_name, ct_tiles, tile_to_neighbors, area_threshold, steps)
 
   # plot results (for debug)
   figure, axes = plot_map(map_name=map_name, map_type="simpleradar", dark=True)
@@ -171,7 +180,7 @@ def _bfs(map_name: str,
          current_tiles: list[int],
          neighbor_info: dict[int, set[int]],
          area_threshold: float = 1 / 20,
-         step_denominator: int = 10):
+         steps: int = 10):
   """Helper function to run bfs from given tiles to generate map_control values dict.
 
   Values are allocated to tiles depending on how many tiles are between it
@@ -217,7 +226,7 @@ def _bfs(map_name: str,
     # go 10 steps deep in BFS
     # each step gets -0.1 less control value
     start_tile = BFSTileData(
-      tile_id=cur_start_tile, map_control_value=1.0, steps_left=10
+      tile_id=cur_start_tile, map_control_value=1.0, steps_left=steps
     )
 
     queue: deque[BFSTileData] = deque([start_tile])
@@ -242,7 +251,7 @@ def _bfs(map_name: str,
           [
             BFSTileData(
               tile_id=neighbor,
-              map_control_value=max((cur_tile.steps_left - 1) / step_denominator, 0.1),
+              map_control_value=max((cur_tile.steps_left - 1) / steps, 0.1),
               steps_left=cur_tile.steps_left - 1,
             )
             for neighbor in neighbors
@@ -257,12 +266,14 @@ def _bfs(map_name: str,
 
 if __name__ == "__main__":
   from pathlib import Path
-  demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
+  import os
+  demo_path = os.path.join(os.getcwd(), 'demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json')
+  # demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   # demo_path = Path(__file__).parent / '../../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   dm = DataManager(demo_path, do_validate=False)
   # testframe = dm.get_frame(5, 8)
   # map_control_fig, map_control_axes = plot_frame_map_control(dm.get_map_name(), testframe, plot_type='players')
   # map_control_fig.show()
 
-  process_map_control_frame(dm, 5, 8)
+  process_map_control_frame(dm, 5, 8, 1 / 10, 10)
   process_map_control_round(dm, 5, 8)

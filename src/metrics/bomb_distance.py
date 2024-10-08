@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
+
 from awpy.analytics.nav import area_distance
 from awpy.data import NAV
-from awpy.visualization.plot import plot_map
+from awpy.visualization.plot import plot_map, position_transform
 from matplotlib import patches
 
 from models.data_manager import DataManager
@@ -48,9 +50,37 @@ def process_bomb_distance(dm: DataManager, round_idx: int, frame_idx: int, plot:
 
 
 
+def _util_find_bomb_area_ids(map_name: str):
+  f, ax = plot_map(map_name=map_name, map_type='simpleradar', dark=True)
+
+  f, ax = plt.subplots(1, figsize=[64.0,48.0], subplot_kw={"facecolor": "black"})
+  ax.set_xlim(0, 6400)
+  ax.set_ylim(0, 4800)
+
+  for a in NAV[map_name]:
+    area = NAV[map_name][a]
+    southEastX = position_transform(map_name, area["southEastX"], "x")
+    northWestX = position_transform(map_name, area["northWestX"], "x")
+    southEastY = position_transform(map_name, area["southEastY"], "y")
+    northWestY = position_transform(map_name, area["northWestY"], "y")
+    width = (southEastX - northWestX)
+    height = (northWestY - southEastY)
+    col = "None"
+    if area["areaName"].startswith("Bombsite"):
+      col = "red"
+    rect = patches.Rectangle((northWestX, southEastY*10), width*10, height*10, linewidth=1, edgecolor="yellow",
+                             facecolor=col)
+    ax.add_patch(rect)
+    if area["areaName"].startswith("Bombsite"):
+      ax.text(northWestX*10, northWestY*10, str(a), fontsize=4, color="white")
+  f.show()
+
+
 if __name__ == "__main__":
   from pathlib import Path
-  demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
+  import os
+  demo_path = os.path.join(os.getcwd(), 'demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json')
+  # demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   # demo_path = Path(__file__).parent / '../../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   dm = DataManager(demo_path, do_validate=False)
   # testframe = dm.get_frame(5, 8)
