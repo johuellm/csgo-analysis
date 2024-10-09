@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 class BombDistanceMetric(BaseMetric):
+  """
+  The BombDistanceMetric provides a metric that estimates the distance from the bomb's position to the
+  closest bombsite.
+  """
   @override
   def process_metric_frame(self, dm: DataManager, round_idx: int, frame_idx: int, plot_metric: bool = False) -> float:
     logger.info("Calculating %s metrics for round %d, frame %d" % (self.__class__.__name__, round_idx, frame_idx))
@@ -32,10 +36,12 @@ class BombDistanceMetric(BaseMetric):
     # find shorted bombsite:
     closest_bombsite_dist = float("Inf")
     bombinfo: BombInfo = dm.get_bomb_info(round_idx, frame_idx)
-    bomb_coords = [bombinfo[key] for key in bombinfo]
+    bomb_coords = [bombinfo[key] for key in bombinfo.keys()]
     area_bomb = find_closest_area(map_name, point=bomb_coords, flat=False)
+    geodesic_dist = None
 
-    ## todo: find bombsite area with minimum distance from bomb
+    ## Todo: find bombsite *plantable* area  with minimum distance from bomb
+
     for a in NAV[map_name]:
       area = NAV[map_name][a]
       if area["areaName"].startswith("Bombsite"):
@@ -43,9 +49,13 @@ class BombDistanceMetric(BaseMetric):
         if geodesic_dist["distance"] < closest_bombsite_dist:
           closest_bombsite_dist = geodesic_dist["distance"]
 
+    if not geodesic_dist:
+      raise ValueError("Could not find closest bombsite distance.")
+
     if not plot_metric:
       return closest_bombsite_dist
 
+    logger.info("Plotting %s metrics for round %d, frame %d." % (self.__class__.__name__, round_idx, frame_idx))
     fig, ax = plot_map(map_name=map_name, map_type='simpleradar', dark=True)
 
     for a in NAV[map_name]:

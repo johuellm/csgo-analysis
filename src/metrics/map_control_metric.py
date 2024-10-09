@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 ## TODO: Add/fix logging
 
 class MapControlMetric(BaseMetric):
+  """
+  MapControlMetric provides a metric to estimate the mapcontrol for the T-side.
+  """
   def process_metric_frame(self,
                            dm: DataManager,
                            round_idx: int,
@@ -89,7 +92,7 @@ class MapControlMetric(BaseMetric):
       for i in alive_players_locations_ct
     ]
 
-    # use breadh-first-search to identify map control
+    # use breadth-first-search to identify map control
     t_control_values = _bfs(map_name, t_tiles, tile_to_neighbors, area_threshold, steps)
     ct_control_values = _bfs(map_name, ct_tiles, tile_to_neighbors, area_threshold, steps)
 
@@ -106,6 +109,7 @@ class MapControlMetric(BaseMetric):
     if not plot_metric:
       return metric
 
+    logger.info("Plotting %s metrics for round %d, frame %d." % (self.__class__.__name__, round_idx, frame_idx))
     figure, axes = plot_map(map_name=map_name, map_type="simpleradar", dark=True)
     _plot_map_control_from_dict(
       map_name,
@@ -127,7 +131,7 @@ class MapControlMetric(BaseMetric):
                            norm: int = 0,
                            absolute: bool = False
                            ) -> list[float]:
-    """Calculates the metric for a all frames in a round.
+    """Calculates the metric for an all frames in a round.
 
     Args:
       dm: DataManager instance
@@ -156,7 +160,7 @@ class MapControlMetric(BaseMetric):
 
     metric_values: list[float] = []
     for frame_idx, frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
-      metric = self.process_metric_frame(dm, round_idx, frame_idx)
+      metric = self.process_metric_frame(dm, round_idx, frame_idx, plot_metric, area_threshold, steps)
       metric_values.append(metric)
 
     if plot_metric:
@@ -182,7 +186,7 @@ class MapControlMetric(BaseMetric):
       by T/CT. Each tile is given a value between -1 (complete T control) and 1
       (complete CT control). If a tile is controlled by both teams, a value is
       found by taking the ratio between the sum of T values and sum of T and
-      CT values. Once all of the tiles' values are calculated, a weighted sum
+      CT values. Once all the tiles' values are calculated, a weighted sum
       is done on the tiles' values where the tiles' area is the weights.
       This weighted sum is transformed to fit the range [-1, 1] and then
       returned as the map control metric.
@@ -283,8 +287,8 @@ def _bfs(
     raise ValueError(msg)
 
   total_map_area = 0
-  for tile in NAV[map_name]:
-    total_map_area += calculate_tile_area(map_name, tile)
+  for tile_id in NAV[map_name]:
+    total_map_area += calculate_tile_area(map_name, tile_id)
 
   map_control_values: dict[int, list[float]] = defaultdict(list)
   for cur_start_tile in current_tiles:
@@ -311,7 +315,7 @@ def _bfs(
         neighbors = list(neighbor_info[cur_id])
         if len(neighbors) == 0:
           neighbors = [
-            tile.tile_id
+            tile["areas"][0]
             for tile in _approximate_neighbors(map_name, cur_id)   # retrieves neighbors by identifying 5 areas with minimal distance to focal area
           ]
 

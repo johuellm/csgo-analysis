@@ -11,12 +11,28 @@ logger = logging.getLogger(__name__)
 
 
 class BaseMetric(ABC):
+  """
+  This class provides interface for all metrics. Each metric is calculated on the frame-level and then can be
+  aggregated towards the round level. Base implementation of the round aggregation is just putting the frame
+  level values in a list.
+  """
   @abstractmethod
   def process_metric_frame(self, dm: DataManager, round_idx: int, frame_idx: int, plot_metric: bool = False) -> float:
+    """Calculates the metric for a single frames in a round.
+
+    Args:
+      dm: DataManager that hosts all game data.
+      round_idx: The round index.
+      frame_idx: The frame index.
+      plot_metric: True = plot the round chart; False = no plot
+
+    Returns: A single metric value.
+    """
     pass
 
   def process_metric_round(self, dm: DataManager, round_idx: int, plot_metric: bool = False) -> list[float]:
-    """Calculates the metric for all frames in a round.
+    """Calculates the metric for all frames in a round. Base implementation just aggregates all single frame
+    values into a list.
 
     Args:
       dm: DataManager that hosts all game data.
