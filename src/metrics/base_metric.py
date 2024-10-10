@@ -49,8 +49,13 @@ class BaseMetric(ABC):
 
     metric_values = []
     for frame_idx, frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
-      metric = self.process_metric_frame(dm, round_idx, frame_idx)
-      metric_values.append(metric)
+      try:
+        metric = self.process_metric_frame(dm, round_idx, frame_idx)
+        metric_values.append(metric)
+      except ValueError as err:
+        logger.warning(err)
+        logger.warning("Ignoring frame %d and adding NA instead." % frame_idx)
+        metric_values.append(None)
 
     if plot_metric:
       logger.info("Plotting %s metrics for round %d." % (self.__class__.__name__, round_idx))

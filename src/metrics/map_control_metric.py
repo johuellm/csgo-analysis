@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 ## TODO: Discuss how to estimate map control logic
-## TODO: Add/fix logging
+## TODO: Performance optimize calculation (e.g., less full loops over all NAV areas)
 
 class MapControlMetric(BaseMetric):
   """
@@ -160,8 +160,13 @@ class MapControlMetric(BaseMetric):
 
     metric_values: list[float] = []
     for frame_idx, frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
-      metric = self.process_metric_frame(dm, round_idx, frame_idx, plot_metric, area_threshold, steps)
-      metric_values.append(metric)
+      try:
+        metric = self.process_metric_frame(dm, round_idx, frame_idx, plot_metric, area_threshold, steps)
+        metric_values.append(metric)
+      except (ValueError, KeyError) as err:
+        logger.warning(err)
+        logger.warning("Ignoring frame %d and adding NA instead." % frame_idx)
+        metric_values.append(None)
 
     if plot_metric:
       logger.info("Plotting %s metrics for round %d." % (self.__class__.__name__, round_idx))
