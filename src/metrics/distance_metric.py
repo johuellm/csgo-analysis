@@ -123,5 +123,5 @@ if __name__ == "__main__":
   # map_control_fig, map_control_axes = plot_frame_map_control(dm.get_map_name(), testframe, plot_type='players')
   # map_control_fig.show()
 
-  tdm = DistanceMetric(cumulative=True)
-  tdm.process_metric_round(dm, 0, True)
+  tdm = DistanceMetric(cumulative=False)
+  tdm.process_metric_round(dm, 4, True)

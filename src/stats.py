@@ -6,6 +6,7 @@ from typing import Any
 
 from metrics.base_metric import BaseMetric
 from metrics.bomb_distance_metric import BombDistanceMetric
+from metrics.distance_metric import DistanceMetric
 from metrics.map_control_metric import MapControlMetric
 from models.data_manager import DataManager
 
@@ -18,7 +19,7 @@ EXAMPLE_DEMO_PATH = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9
 KEYS_ROUND_LEVEL = ("roundNum", "isWarmup", "startTick", "freezeTimeEndTick", "endTick", "endOfficialTick", "bombPlantTick", "tScore", "ctScore", "endTScore", "endCTScore", "ctTeam", "tTeam", "winningSide", "winningTeam", "losingTeam", "roundEndReason", "ctFreezeTimeEndEqVal", "ctRoundStartEqVal", "ctRoundSpendMoney", "ctBuyType", "tFreezeTimeEndEqVal", "tRoundStartEqVal", "tRoundSpendMoney", "tBuyType")
 #"parseKillFrame"
 KEYS_FRAME_LEVEL = ("tick", "seconds", "clockTime")
-KEYS_METRIC_LEVEL = ("bombDistance", "mapControl")
+KEYS_METRIC_LEVEL = ("bombDistance", "mapControl", "totalDistance", "deltaDistance")
 KEYS_TEAM_LEVEL = ("side", "teamName", "teamEqVal", "alivePlayers", "totalUtility")
 # "inventory", "spotters",
 KEYS_PLAYER_LEVEL = ("steamID", "name", "team", "side", "x", "y", "z", "velocityX", "velocityY", "velocityZ", "viewX", "viewY", "hp", "armor", "activeWeapon", "totalUtility", "isAlive", "isBlinded", "isAirborne", "isDucking", "isDuckingInProgress", "isUnDuckingInProgress", "isDefusing", "isPlanting", "isReloading", "isInBombZone", "isInBuyZone", "isStanding", "isScoped", "isWalking", "isUnknown", "equipmentValue", "equipmentValueFreezetimeEnd", "equipmentValueRoundStart", "cash", "cashSpendThisRound", "cashSpendTotal", "hasHelmet", "hasDefuse", "hasBomb", "ping", "zoomLevel")
@@ -36,7 +37,16 @@ def process_round(round_idx: int, metrics: list[BaseMetric]) -> list[list[Any]]:
     data_framelevel = [frame[key] for key in KEYS_FRAME_LEVEL]
 
     # all estimated metrics, they are added to each player observation later
-    data_metriclevel = [metric.process_metric_frame(dm, round_idx, frame_idx) for metric in metrics]
+    ### todo some metrics need specific process_metric_round
+    data_metriclevel = []
+    for metric in metrics:
+      try:
+        metric_value = metric.process_metric_frame(dm, round_idx, frame_idx)
+        data_metriclevel.append(metric_value)
+      except (ValueError, KeyError) as err:
+        logger.warning(err)
+        logger.warning("Ignoring frame %d and adding NA instead for metric %s." % (frame_idx, metric.__class__))
+        data_metriclevel.append(None)
 
     # all variables on the team and player level for the T side
     team = frame["t"]
@@ -62,9 +72,11 @@ if __name__ == '__main__':
   logger.info("Processing match id: %s with %d rounds." % (dm.get_match_id(), dm.get_round_count()))
 
   rows = []
-  for round in range(1,2): #dm.get_round_count()):
+  for round in range(dm.get_round_count()):
     logger.info("Converting round %d" % round)
-    rows.extend(process_round(round, [BombDistanceMetric(), MapControlMetric()]))
+    rows.extend(process_round(round, [
+      BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False)
+    ]))
 
   with open("metrics/testdemo.csv", 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)

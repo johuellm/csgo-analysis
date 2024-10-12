@@ -320,7 +320,7 @@ def _bfs(
         neighbors = list(neighbor_info[cur_id])
         if len(neighbors) == 0:
           neighbors = [
-            tile["areas"][0]
+            tile.tile_id
             for tile in _approximate_neighbors(map_name, cur_id)   # retrieves neighbors by identifying 5 areas with minimal distance to focal area
           ]
 
