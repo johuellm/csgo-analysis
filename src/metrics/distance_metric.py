@@ -38,7 +38,7 @@ class DistanceMetric(BaseMetric):
     Returns: A single metric value.
 
     """
-    logger.info("Calculating %s metrics for round %d, frame %d" % (self.__class__.__name__, round_idx, frame_idx))
+    logger.debug("Calculating %s metrics for round %d, frame %d" % (self.__class__.__name__, round_idx, frame_idx))
     map_name = dm.get_map_name()
 
     if map_name not in NAV:

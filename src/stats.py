@@ -10,8 +10,12 @@ from metrics.distance_metric import DistanceMetric
 from metrics.map_control_metric import MapControlMetric
 from models.data_manager import DataManager
 
-if os.environ.get("LOGGING_INFO"):
+LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
+if LOGGING_LEVEL == "INFO":
   logging.basicConfig(level=logging.INFO)
+elif LOGGING_LEVEL == "DEBUG":
+  logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 EXAMPLE_DEMO_PATH = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
@@ -43,7 +47,8 @@ def process_round(round_idx: int, metrics: list[BaseMetric]) -> list[list[Any]]:
       try:
         metric_value = metric.process_metric_frame(dm, round_idx, frame_idx)
         data_metriclevel.append(metric_value)
-      except (ValueError, KeyError) as err:
+      except (ValueError, KeyError, ZeroDivisionError) as err:
+        ## TODO: Fix the ZeroDivisonError
         logger.warning(err)
         logger.warning("Ignoring frame %d and adding NA instead for metric %s." % (frame_idx, metric.__class__))
         data_metriclevel.append(None)
@@ -71,15 +76,24 @@ if __name__ == '__main__':
   dm = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
   logger.info("Processing match id: %s with %d rounds." % (dm.get_match_id(), dm.get_round_count()))
 
-  rows = []
-  for round in range(dm.get_round_count()):
-    logger.info("Converting round %d" % round)
-    rows.extend(process_round(round, [
-      BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False)
-    ]))
-
-  with open("metrics/testdemo.csv", 'w', newline='') as csvfile:
+  with open("testdemo.csv", 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(KEYS_ROUND_LEVEL + KEYS_FRAME_LEVEL + KEYS_METRIC_LEVEL + KEYS_TEAM_LEVEL + KEYS_PLAYER_LEVEL)
-    writer.writerows(rows)
-    logger.info("%d rows written." % len(rows))
+
+    # rows = []
+    rows_total = 0
+    for round in range(1,2):#dm.get_round_count()):
+      logger.info("Converting round %d" % round)
+
+      # rows.extend(process_round(round, [
+      #   BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False)
+      # ]))
+
+      # Write straight to file, so in case of error not all converted rows are lost.
+      rows = process_round(round, [
+        BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False)
+      ])
+      writer.writerows(rows)
+      logger.info("%d rows written to file." % len(rows))
+      rows_total+= len(rows)
+    logger.info("SUCCESSFULLY COMPLETED: %d written in total." % rows_total)

@@ -56,7 +56,7 @@ class MapControlMetric(BaseMetric):
     Returns: The map control metric.
 
     """
-    logger.info("Calculating %s metrics for round %d, frame %d" % (self.__class__.__name__, round_idx, frame_idx))
+    logger.debug("Calculating %s metrics for round %d, frame %d" % (self.__class__.__name__, round_idx, frame_idx))
     testframe = dm.get_frame(round_idx, frame_idx)
     map_name = dm.get_map_name()
 
@@ -228,6 +228,9 @@ class MapControlMetric(BaseMetric):
 
       np_current_map_control_value = np.array(current_map_control_value)
       np_tile_areas = np.array(tile_areas)
+
+      ## TODO: division through zero error for some tiles
+      sum_tile_areas = sum(np_tile_areas)
 
       # Normalize from -1 to 1 for ct possession weighted by tile area (ONLY occupied tiles)
       if norm == 0:

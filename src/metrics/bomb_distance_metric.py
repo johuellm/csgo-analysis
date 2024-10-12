@@ -31,7 +31,7 @@ class BombDistanceMetric(BaseMetric):
   """
   @override
   def process_metric_frame(self, dm: DataManager, round_idx: int, frame_idx: int, plot_metric: bool = False) -> float:
-    logger.info("Calculating %s metrics for round %d, frame %d" % (self.__class__.__name__, round_idx, frame_idx))
+    logger.debug("Calculating %s metrics for round %d, frame %d" % (self.__class__.__name__, round_idx, frame_idx))
     map_name = dm.get_map_name()
 
     if map_name not in NAV:
