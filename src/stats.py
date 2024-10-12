@@ -74,15 +74,16 @@ def process_round(round_idx: int, metrics: list[BaseMetric]) -> list[list[Any]]:
 
 if __name__ == '__main__':
   dm = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
-  logger.info("Processing match id: %s with %d rounds." % (dm.get_match_id(), dm.get_round_count()))
+  output_filename = "testdemo.csv"
+  logger.info("Processing match id: %s with %d rounds to file %s." % (dm.get_match_id(), dm.get_round_count(), output_filename))
 
-  with open("testdemo.csv", 'w', newline='') as csvfile:
+  with open(output_filename, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(KEYS_ROUND_LEVEL + KEYS_FRAME_LEVEL + KEYS_METRIC_LEVEL + KEYS_TEAM_LEVEL + KEYS_PLAYER_LEVEL)
 
     # rows = []
-    rows_total = 0
-    for round in range(1,2):#dm.get_round_count()):
+    rows_total = 00
+    for round in range(dm.get_round_count()):
       logger.info("Converting round %d" % round)
 
       # rows.extend(process_round(round, [
