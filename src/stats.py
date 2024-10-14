@@ -25,8 +25,8 @@ KEYS_ROUND_LEVEL = ("roundNum", "isWarmup", "startTick", "freezeTimeEndTick", "e
 KEYS_FRAME_LEVEL = ("tick", "seconds", "clockTime")
 KEYS_METRIC_LEVEL = ("bombDistance", "mapControl", "totalDistance", "deltaDistance")
 KEYS_TEAM_LEVEL = ("side", "teamName", "teamEqVal", "alivePlayers", "totalUtility")
-# "inventory", "spotters",
-KEYS_PLAYER_LEVEL = ("steamID", "name", "team", "side", "x", "y", "z", "velocityX", "velocityY", "velocityZ", "viewX", "viewY", "hp", "armor", "activeWeapon", "totalUtility", "isAlive", "isBlinded", "isAirborne", "isDucking", "isDuckingInProgress", "isUnDuckingInProgress", "isDefusing", "isPlanting", "isReloading", "isInBombZone", "isInBuyZone", "isStanding", "isScoped", "isWalking", "isUnknown", "equipmentValue", "equipmentValueFreezetimeEnd", "equipmentValueRoundStart", "cash", "cashSpendThisRound", "cashSpendTotal", "hasHelmet", "hasDefuse", "hasBomb", "ping", "zoomLevel")
+# "inventory", "spotters", "isBlinded", "isAirborne", "isDucking", "isDuckingInProgress", "isUnDuckingInProgress", "isStanding", "isScoped", "isWalking", "isUnknown", "ping", "zoomLevel"
+KEYS_PLAYER_LEVEL = ("steamID", "name", "team", "side", "x", "y", "z", "velocityX", "velocityY", "velocityZ", "viewX", "viewY", "hp", "armor", "activeWeapon", "totalUtility", "isAlive", "isDefusing", "isPlanting", "isReloading", "isInBombZone", "isInBuyZone", "equipmentValue", "equipmentValueFreezetimeEnd", "equipmentValueRoundStart", "cash", "cashSpendThisRound", "cashSpendTotal", "hasHelmet", "hasDefuse", "hasBomb")
 
 
 
@@ -36,7 +36,15 @@ def process_round(round_idx: int, metrics: list[BaseMetric]) -> list[list[Any]]:
   data_roundlevel = [round[key] for key in KEYS_ROUND_LEVEL]
   frames = dm._get_frames(round_idx)
   logger.info("Processing round %d with %d frames." % (round_idx, len(frames)))
+  keys_player_level_combined = []
   for frame_idx, frame in enumerate(frames):
+
+    # check validity of frame
+    valid_frame, err_text = check_frame_validity(frame)
+    if not valid_frame:
+      logger.warning("Skipping frame %d entirely because %s." % (frame_idx, err_text))
+      continue
+
     # all variables on the frame level, they are added to each player observation later.
     data_framelevel = [frame[key] for key in KEYS_FRAME_LEVEL]
 
@@ -51,26 +59,49 @@ def process_round(round_idx: int, metrics: list[BaseMetric]) -> list[list[Any]]:
       except (ValueError, KeyError, ZeroDivisionError) as err:
         ## TODO: Fix the ZeroDivisonError
         logger.warning(err)
-        logger.warning("Ignoring frame %d and adding NA instead for metric %s." % (frame_idx, metric.__class__))
+        logger.warning("Ignoring metric for frame %d and adding NA instead for metric %s." % (frame_idx, metric.__class__))
         data_metriclevel.append(None)
 
     # all variables on the team and player level for the T side
     team = frame["t"]
     data_teamlevel = [team[key] for key in KEYS_TEAM_LEVEL]
-    for player in team["players"]:
-      data_playerlevel = [player[key] for key in KEYS_PLAYER_LEVEL]
-      row = data_roundlevel + data_framelevel + data_metriclevel + data_teamlevel + data_playerlevel
-      rows_round.append(row)
+    data_playerlevel = []
+    # iterate through all players, but keep them in same order every iteration
+    for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
+      data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
+
+    row = data_roundlevel + data_framelevel + data_metriclevel + data_teamlevel + data_playerlevel
+    rows_round.append(row)
 
     # all variables on the team and player level for the CT side
     team = frame["ct"]
     data_teamlevel = [team[key] for key in KEYS_TEAM_LEVEL]
-    for player in team["players"]:
+    data_playerlevel = []
+    # iterate through all players, but keep them in same order every iteration
+    for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
       data_playerlevel = [player[key] for key in KEYS_PLAYER_LEVEL]
-      row = data_roundlevel + data_framelevel + data_metriclevel + data_teamlevel + data_playerlevel
-      rows_round.append(row)
+
+    row = data_roundlevel + data_framelevel + data_metriclevel + data_teamlevel + data_playerlevel
+    rows_round.append(row)
   return rows_round
 
+
+def check_frame_validity(frame):
+  if len(frame["t"]["players"]) != 5:
+    return False, "Frame does not have 5 T-side players."
+
+  if len(frame["ct"]["players"]) != 5:
+    return False, "Frame does not have 5 T-side players."
+
+  return True, None
+
+
+def generate_keys_all_players():
+  keys = []
+  for player_idx in range(1,6):
+    for key in KEYS_PLAYER_LEVEL:
+      keys.append("p%d_%s" % (player_idx, key))
+  return tuple(keys)
 
 
 if __name__ == '__main__':
@@ -80,16 +111,11 @@ if __name__ == '__main__':
 
   with open(output_filename, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerow(KEYS_ROUND_LEVEL + KEYS_FRAME_LEVEL + KEYS_METRIC_LEVEL + KEYS_TEAM_LEVEL + KEYS_PLAYER_LEVEL)
+    writer.writerow(KEYS_ROUND_LEVEL + KEYS_FRAME_LEVEL + KEYS_METRIC_LEVEL + KEYS_TEAM_LEVEL + generate_keys_all_players())
 
-    # rows = []
-    rows_total = 00
+    rows_total = 0
     for round in range(dm.get_round_count()):
       logger.info("Converting round %d" % round)
-
-      # rows.extend(process_round(round, [
-      #   BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False)
-      # ]))
 
       # Write straight to file, so in case of error not all converted rows are lost.
       rows = process_round(round, [

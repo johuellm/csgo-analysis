@@ -1,4 +1,5 @@
 from collections import defaultdict
+
 from awpy.types import Game, GameRound, GameFrame, PlayerInfo, BombInfo, GrenadeAction
 from pathlib import Path
 import json
@@ -44,6 +45,8 @@ class DataManager:
     def __init__(self, file_path: Path, do_validate: bool = True):
         self.file_path = file_path
         self.data = _load_game_data(file_path, do_validate)
+        self.mappingT = None
+        self.mappingCT = None
 
     def get_match_id(self) -> str | None:
         """Returns the match ID of the Game object, or None if no match ID is found."""
@@ -112,13 +115,25 @@ class DataManager:
             raise ValueError(f"No bomb info found in round {round_index}, frame {frame_index}")
         return bomb_info
     
+    #@deprecated
     def get_player_at_frame(self, player_index: int, team: SideType, round_index: int, frame_index: int) -> PlayerInfo:
-        """Returns the PlayerInfo object for the given player in the given team, round, and frame."""
+        """DEPCRATED (see below): Returns the PlayerInfo object for the given player in the given team, round, and frame."""
         players = self.get_player_info_lists(round_index, frame_index)[team]
-        player = players[player_index] # NOTE: I don't know if the assumption that players are ordered the same every round is correct. If this is wrong, change how this is done.
+        player = players[player_index] # TODO: NOTE: I don't know if the assumption that players are ordered the same every round is correct. If this is wrong, change how this is done.
         # To be fair, the old way (storing mappings from index to name, mappings which were generated in `get_all_team_routines`) also kind of relied on that assumption in that if untrue, the order of players could change across rounds and that would break the GUI.
-        return player 
-    
+        # -> does not work see function get_player_mapped
+        return player
+
+    def get_player_idx_mapped(self, player_name: str, team: SideType, frame_data):
+        if self.mappingT == None or self.mappingCT == None:
+            self.create_player_mapping(frame_data)
+        mapping = self.mappingT if team == "t" else self.mappingCT
+        return mapping[player_name]
+
+    def create_player_mapping(self, frame_data):
+        self.mappingT = dict(zip([player["name"] for player in frame_data["t"]["players"]],range(5)))
+        self.mappingCT = dict(zip([player["name"] for player in frame_data["ct"]["players"]],range(5)))
+
     def is_player_alive(self, player_index: int, team: SideType, round_index: int, frame_index: int) -> bool:
         """Returns whether the given player is alive in the given team, round, and frame."""
         player = self.get_player_at_frame(player_index, team, round_index, frame_index)
