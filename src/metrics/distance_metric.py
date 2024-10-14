@@ -15,7 +15,8 @@ elif LOGGING_LEVEL == "DEBUG":
 logger = logging.getLogger(__name__)
 
 
-## TODO Add total distance not only to previous frame;
+## TODO: Add total distance not only to previous frame;
+## TODO: Todo, estimate metric depending on CT vs. T side.
 
 class DistanceMetric(BaseMetric):
 

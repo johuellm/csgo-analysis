@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 ## TODO: Find only bombsite area tiles where you can plant
-## TODO: Use distance lookup table to speed things up
-## TODO: Add/fix logging
+## TODO: Todo, estimate metric depending on CT vs. T side.
 
 
 class BombDistanceMetric(BaseMetric):

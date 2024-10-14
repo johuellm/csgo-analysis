@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 ## TODO: Discuss how to estimate map control logic
 ## TODO: Performance optimize calculation (e.g., less full loops over all NAV areas)
+## TODO: Todo, estimate metric depending on CT vs. T side.
 
 class MapControlMetric(BaseMetric):
   """

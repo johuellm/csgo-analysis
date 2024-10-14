@@ -42,6 +42,7 @@ def process_round(round_idx: int, metrics: list[BaseMetric]) -> list[list[Any]]:
 
     # all estimated metrics, they are added to each player observation later
     ### todo some metrics need specific process_metric_round
+    ### todo: distance metrics should also be estimate for CT side
     data_metriclevel = []
     for metric in metrics:
       try:
