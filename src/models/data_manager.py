@@ -127,12 +127,16 @@ class DataManager:
     def get_player_idx_mapped(self, player_name: str, team: SideType, frame_data):
         if self.mappingT == None or self.mappingCT == None:
             self.create_player_mapping(frame_data)
+
         mapping = self.mappingT if team == "t" else self.mappingCT
         return mapping[player_name]
 
     def create_player_mapping(self, frame_data):
-        self.mappingT = dict(zip([player["name"] for player in frame_data["t"]["players"]],range(5)))
-        self.mappingCT = dict(zip([player["name"] for player in frame_data["ct"]["players"]],range(5)))
+        # Do not recreate if already exists, as it would change order again and break mapping.
+        if self.mappingT == None:
+            self.mappingT = dict(zip([player["name"] for player in frame_data["t"]["players"]],range(5)))
+        if self.mappingCT == None:
+            self.mappingCT = dict(zip([player["name"] for player in frame_data["ct"]["players"]],range(5)))
 
     def is_player_alive(self, player_index: int, team: SideType, round_index: int, frame_index: int) -> bool:
         """Returns whether the given player is alive in the given team, round, and frame."""
