@@ -162,7 +162,7 @@ class MapControlMetric(BaseMetric):
     metric_values: list[float] = []
     for frame_idx, frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
       try:
-        metric = self.process_metric_frame(dm, round_idx, frame_idx, plot_metric, area_threshold, steps)
+        metric = self.process_metric_frame(dm, round_idx, frame_idx, False, area_threshold, steps, occupied_only, norm, absolute)
         metric_values.append(metric)
       except (ValueError, KeyError) as err:
         logger.warning(err)
@@ -349,9 +349,9 @@ def _bfs(
 if __name__ == "__main__":
   import os
   from pathlib import Path
-  # demo_path = os.path.join(os.getcwd(), 'demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json')
+  demo_path = os.path.join(os.getcwd(), 'demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json')
   # demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
-  demo_path = Path(__file__).parent / '../../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
+  # demo_path = Path(__file__).parent / '../../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   dm = DataManager(demo_path, do_validate=False)
   # testframe = dm.get_frame(5, 8)
   # map_control_fig, map_control_axes = plot_frame_map_control(dm.get_map_name(), testframe, plot_type='players')
@@ -359,5 +359,5 @@ if __name__ == "__main__":
 
 
   mpc = MapControlMetric()
-  mpc.process_metric_frame(dm, 5, 8, True)
-  mpc.process_metric_round(dm, 5, True)
+  #mpc.process_metric_frame(dm, 5, 8, True)
+  mpc.process_metric_round(dm, 5, True, norm=2)

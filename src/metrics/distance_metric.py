@@ -23,6 +23,7 @@ class DistanceMetric(BaseMetric):
   def __init__(self, cumulative: bool = True):
     self.cumulative = cumulative
     self.total_distance = 0.0
+    self.previous_positions = None
 
   @override
   def process_metric_frame(self, dm: DataManager, round_idx: int, frame_idx: int, plot_metric: bool = False) -> float:
@@ -50,7 +51,7 @@ class DistanceMetric(BaseMetric):
       raise ValueError(f"Frame index {frame_idx} out of bounds (max index is {len(frames) - 1})")
 
     # first frame is always 0.0 by definition (there cannot be a preceding frame to get a distance delta)
-    if frame_idx < 1:
+    if frame_idx < 1 or self.previous_positions == None:
       # save previous positions for next frame and return 0.0.
       self.previous_positions = {
         player["name"]: (player["x"], player["y"], player["z"])
