@@ -13,7 +13,7 @@ library(dplyr)
 setwd("..\\src\\")
 
 #### PREPROCESS DATA FRAME ####
-df <- read.csv("testdemo.csv")
+df <- read.csv("testdemo6.csv")
 df$afterAdverseEvent = df$t_alivePlayers < 5
 df$bombPlanted = as.logical(df$bombPlanted)
 
@@ -67,3 +67,9 @@ par(mfrow=c(1,1))
 df.test <- df %>% filter(roundNum == 5) %>% mutate(secondsDiff = secondsCalculated - seconds) %>% select(tick, seconds, secondsCalculated, secondsDiff)
 
 
+
+
+
+df <- read.csv("testdemo5.csv")
+df.twin <- df %>% filter(winningSide == "T")
+df.tlose <- df %>% filter(winningSide == "CT")

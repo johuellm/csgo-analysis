@@ -1,0 +1,77 @@
+---
+title: "Win vs Lose Diagrams"
+author: "Joschka Hüllmann"
+date: '2024-10-16'
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "D:\\dev\\csgo-analysis\\src\\")
+library(dplyr)
+```
+
+# CSGO Win vs Lose Analysis
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+df <- read.csv("testdemo6.csv")
+df$afterAdverseEvent = df$t_alivePlayers < 5
+df$bombPlanted = as.logical(df$bombPlanted)
+
+df.twin <- df %>% filter(winningSide == "T")
+
+```
+
+
+## T rounds won
+
+```{r results='asis', echo=FALSE}
+
+for(round_idx in unique(df.twin$roundNum)) {
+  # Pull descriptive values
+  eqvalue_t <- df.twin %>% filter(roundNum == round_idx) %>% pull(tRoundSpendMoney) %>% first()
+  eqvalue_ct <- df.twin %>% filter(roundNum == round_idx) %>% pull(ctRoundSpendMoney) %>% first()
+  score_before_t <- df.twin %>% filter(roundNum == round_idx) %>% pull(tScore) %>% first()
+  score_before_ct <- df.twin %>% filter(roundNum == round_idx) %>% pull(ctScore) %>% first()
+  team_name_t <- df.twin %>% filter(roundNum == round_idx) %>% pull(tTeam) %>% first()
+  team_name_ct <- df.twin %>% filter(roundNum == round_idx) %>% pull(ctTeam) %>% first()
+  
+  cat("**Round ", round_idx, "**\n\n", sep = "")
+  cat("RoundSpendMoney T: **", eqvalue_t, "**\n\n", sep = "")
+  cat("RoundSpendMoney CT: **", eqvalue_ct, "**\n\n", sep = "")
+  cat(team_name_t, " **", score_before_t, ":", score_before_ct, "** ",team_name_ct,"\n\n", sep = "")
+  
+  df.test <- df.twin %>% filter(roundNum == round_idx) %>%
+	select(velocityDeviation,tHp,ctHp,bombDistance,mapControl,deltaDistance,totalDistance,secondsCalculated,afterAdverseEvent,bombPlanted,bombSeconds)
+  timeAdverseEvent <- df %>% filter(roundNum == round_idx, afterAdverseEvent == TRUE) %>% pull(secondsCalculated) %>% first()
+  par(mfrow=c(2,3))
+  plot(df.test$secondsCalculated, df.test$tHp, ylim=c(0,500), col = rgb(df.test$afterAdverseEvent,0,df.test$bombPlanted))
+  abline(v = df.test$bombSeconds, lty="dashed")
+  abline(v = timeAdverseEvent)
+  plot(df.test$secondsCalculated, df.test$mapControl, ylim=c(-1,1), col = rgb(df.test$afterAdverseEvent,0,df.test$bombPlanted))
+  abline(v = df.test$bombSeconds, lty="dashed")
+  abline(v = timeAdverseEvent)
+  plot(df.test$secondsCalculated, df.test$bombDistance, col = rgb(df.test$afterAdverseEvent,0,df.test$bombPlanted))
+  abline(v = df.test$bombSeconds, lty="dashed")
+  abline(v = timeAdverseEvent)
+  plot(df.test$secondsCalculated, df.test$deltaDistance, col = rgb(df.test$afterAdverseEvent,0,df.test$bombPlanted))
+  abline(v = df.test$bombSeconds, lty="dashed")
+  abline(v = timeAdverseEvent)
+  plot(df.test$secondsCalculated, df.test$totalDistance, col = rgb(df.test$afterAdverseEvent,0,df.test$bombPlanted))
+  abline(v = df.test$bombSeconds, lty="dashed")
+  abline(v = timeAdverseEvent)
+  plot(df.test$secondsCalculated, df.test$velocityDeviation, col = rgb(df.test$afterAdverseEvent,0,df.test$bombPlanted))
+  abline(v = df.test$bombSeconds, lty="dashed")
+  abline(v = timeAdverseEvent)
+  par(mfrow=c(1,1))
+  cat("\n\n")
+
+}
+```
+
