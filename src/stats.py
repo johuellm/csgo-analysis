@@ -8,6 +8,8 @@ from metrics.base_metric import BaseMetric
 from metrics.bomb_distance_metric import BombDistanceMetric
 from metrics.distance_metric import DistanceMetric
 from metrics.map_control_metric import MapControlMetric
+from metrics.teamhp_metric import TeamHpMetric
+from metrics.velocity_deviation_metric import VelocityDeviationMetric
 from models.data_manager import DataManager
 
 LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
@@ -25,12 +27,13 @@ logger = logging.getLogger(__name__)
 EXAMPLE_DEMO_PATH = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
 
 KEYS_ROUND_LEVEL = ("roundNum", "isWarmup", "startTick", "freezeTimeEndTick", "endTick", "endOfficialTick", "bombPlantTick", "tScore", "ctScore", "endTScore", "endCTScore", "ctTeam", "tTeam", "winningSide", "winningTeam", "losingTeam", "roundEndReason", "ctFreezeTimeEndEqVal", "ctRoundStartEqVal", "ctRoundSpendMoney", "ctBuyType", "tFreezeTimeEndEqVal", "tRoundStartEqVal", "tRoundSpendMoney", "tBuyType")
-#"parseKillFrame"
+# "parseKillFrame"
 KEYS_BOMB_LEVEL = ("bombTick", "bombSeconds", "bombClockTime", "bombPlayerSteamID", "bombPlayerName", "bombPlayerTeam", "bombPlayerX", "bombPlayerY", "bombPlayerZ", "bombAction", "bombSite")
 KEYS_FRAME_LEVEL = ("tick", "seconds", "clockTime", "bombPlanted")
 KEYS_FRAME_LEVEL_EXTRA = ("secondsCalculated",)
-KEYS_METRIC_LEVEL = ("bombDistance", "mapControl", "totalDistance", "deltaDistance")
-KEYS_TEAM_LEVEL = ("side", "teamName", "teamEqVal", "alivePlayers", "totalUtility")
+KEYS_METRIC_LEVEL = ("bombDistance", "mapControl", "totalDistance", "deltaDistance", "velocityDeviation", "tHp", "ctHp")
+# "side",
+KEYS_TEAM_LEVEL = ("teamName", "teamEqVal", "alivePlayers", "totalUtility")
 # "inventory", "spotters", "isBlinded", "isAirborne", "isDucking", "isDuckingInProgress", "isUnDuckingInProgress", "isStanding", "isScoped", "isWalking", "isUnknown", "ping", "zoomLevel"
 KEYS_PLAYER_LEVEL = ("steamID", "name", "team", "side", "x", "y", "z", "velocityX", "velocityY", "velocityZ", "viewX", "viewY", "hp", "armor", "activeWeapon", "totalUtility", "isAlive", "isDefusing", "isPlanting", "isReloading", "isInBombZone", "isInBuyZone", "equipmentValue", "equipmentValueFreezetimeEnd", "equipmentValueRoundStart", "cash", "cashSpendThisRound", "cashSpendTotal", "hasHelmet", "hasDefuse", "hasBomb")
 
@@ -85,27 +88,24 @@ def process_round(dm: DataManager, round_idx: int, metrics: list[BaseMetric]) ->
 
     # all variables on the team and player level for the T side
     team = frame["t"]
-    data_teamlevel = [team[key] for key in KEYS_TEAM_LEVEL]
-    data_playerlevel = []
+    data_teamlevel_t = [team[key] for key in KEYS_TEAM_LEVEL]
+    data_playerlevel_t = []
     # iterate through all players, but keep them in same order every iteration
     for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
-      data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
-
-    row = data_roundlevel + data_bomblevel + data_framelevel + data_metriclevel + data_teamlevel + data_playerlevel
-    rows_round.append(row)
+      data_playerlevel_t.extend([player[key] for key in KEYS_PLAYER_LEVEL])
 
     # all variables on the team and player level for the CT side
     team = frame["ct"]
-    data_teamlevel = [team[key] for key in KEYS_TEAM_LEVEL]
-    data_playerlevel = []
+    data_teamlevel_ct = [team[key] for key in KEYS_TEAM_LEVEL]
+    data_playerlevel_ct = []
     # iterate through all players, but keep them in same order every iteration
     for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
-      data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
+      data_playerlevel_ct.extend([player[key] for key in KEYS_PLAYER_LEVEL])
 
-    row = data_roundlevel + data_bomblevel + data_framelevel + data_metriclevel + data_teamlevel + data_playerlevel
+    row = (data_roundlevel + data_bomblevel + data_framelevel + data_metriclevel
+           + data_teamlevel_t + data_playerlevel_t + data_teamlevel_ct + data_playerlevel_ct)
     rows_round.append(row)
   return rows_round
-
 
 def check_frame_validity(frame):
   if len(frame["t"]["players"]) != 5:
@@ -149,13 +149,25 @@ def process_bomb_data(round):
       }
   return bomb_data
 
-def generate_keys_all_players():
+def generate_csv_header():
+
+  # Order
+  # data_roundlevel + data_bomblevel + data_framelevel + data_metriclevel
+  # + data_teamlevel_t + data_playerlevel_t + data_teamlevel_ct + data_playerlevel_ct
+
   keys = []
+  for key in KEYS_TEAM_LEVEL:
+    keys.append("t_%s" % key)
   for player_idx in range(1,6):
     for key in KEYS_PLAYER_LEVEL:
-      keys.append("p%d_%s" % (player_idx, key))
-  return tuple(keys)
+      keys.append("t%d_%s" % (player_idx, key))
+  for key in KEYS_TEAM_LEVEL:
+    keys.append("ct_%s" % key)
+  for player_idx in range(1,6):
+    for key in KEYS_PLAYER_LEVEL:
+      keys.append("ct%d_%s" % (player_idx, key))
 
+  return KEYS_ROUND_LEVEL + KEYS_BOMB_LEVEL + KEYS_FRAME_LEVEL + KEYS_FRAME_LEVEL_EXTRA + KEYS_METRIC_LEVEL + tuple(keys)
 
 def main():
   dm = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
@@ -164,10 +176,10 @@ def main():
 
   with open(output_filename, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerow(KEYS_ROUND_LEVEL + KEYS_BOMB_LEVEL + KEYS_FRAME_LEVEL + KEYS_FRAME_LEVEL_EXTRA + KEYS_METRIC_LEVEL + KEYS_TEAM_LEVEL + generate_keys_all_players())
+    writer.writerow(generate_csv_header())
 
     rows_total = 0
-    for round_idx in [0,2,4]:#range(dm.get_round_count()):
+    for round_idx in range(dm.get_round_count()):
       logger.info("Converting round %d" % round_idx)
 
       # we need to swap mappings, because player sides switch here.
@@ -177,7 +189,8 @@ def main():
 
       # Write straight to file, so in case of error not all converted rows are lost.
       rows = process_round(dm, round_idx, [
-        BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False)
+        BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False),
+        VelocityDeviationMetric(), TeamHpMetric('t'), TeamHpMetric('ct')
       ])
       writer.writerows(rows)
       logger.info("%d rows written to file." % len(rows))
