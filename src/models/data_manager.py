@@ -125,18 +125,39 @@ class DataManager:
         return player
 
     def get_player_idx_mapped(self, player_name: str, team: SideType, frame_data):
+        """
+        WARNING: This breaks if any player switches sides, disconnects, etc. In that case, you must force
+                 re-creation of mappings by using create_player_mapping(..., force_mapping = True)
+
+        TODO: Probably better to switch to SteamID ?
+
+        Args:
+            player_name: The player name.
+            team: The team to which the player belongs
+            frame_data: A frame_data object from which the mapping is created if it does not exist yet.
+
+        Returns:
+
+        """
         if self.mappingT == None or self.mappingCT == None:
             self.create_player_mapping(frame_data)
 
         mapping = self.mappingT if team == "t" else self.mappingCT
         return mapping[player_name]
 
-    def create_player_mapping(self, frame_data):
+    def create_player_mapping(self, frame_data, force_mapping=False):
         # Do not recreate if already exists, as it would change order again and break mapping.
-        if self.mappingT == None:
+        if self.mappingT == None or force_mapping:
             self.mappingT = dict(zip([player["name"] for player in frame_data["t"]["players"]],range(5)))
-        if self.mappingCT == None:
+        if self.mappingCT == None or force_mapping:
             self.mappingCT = dict(zip([player["name"] for player in frame_data["ct"]["players"]],range(5)))
+
+    def swap_player_mapping(self) -> None:
+        """Swaps mappingT and mappingCT when teams switch sides.
+        """
+        temp = self.mappingT
+        self.mappingT = self.mappingCT
+        self.mappingCT = temp
 
     def is_player_alive(self, player_index: int, team: SideType, round_index: int, frame_index: int) -> bool:
         """Returns whether the given player is alive in the given team, round, and frame."""

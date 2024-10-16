@@ -18,15 +18,17 @@ elif LOGGING_LEVEL == "DEBUG":
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-## WARNING: (1) ESTA demos are parsed at 2 Hz or 2 frames per in-game second
-## WARNING: (2) seconds and clocktime are reset after plant
-## WARNING: (3) player indices vary between frames
+## WARNING: (1) ESTA demos are parsed at 2 Hz or 2 frames per in-game second.
+## WARNING: (2) seconds and clockTime are reset after plant.
+## WARNING: (3) player indices vary between frames.
+## WARNING: (4) players switch teams at round 15.
 EXAMPLE_DEMO_PATH = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
 
 KEYS_ROUND_LEVEL = ("roundNum", "isWarmup", "startTick", "freezeTimeEndTick", "endTick", "endOfficialTick", "bombPlantTick", "tScore", "ctScore", "endTScore", "endCTScore", "ctTeam", "tTeam", "winningSide", "winningTeam", "losingTeam", "roundEndReason", "ctFreezeTimeEndEqVal", "ctRoundStartEqVal", "ctRoundSpendMoney", "ctBuyType", "tFreezeTimeEndEqVal", "tRoundStartEqVal", "tRoundSpendMoney", "tBuyType")
 #"parseKillFrame"
 KEYS_BOMB_LEVEL = ("bombTick", "bombSeconds", "bombClockTime", "bombPlayerSteamID", "bombPlayerName", "bombPlayerTeam", "bombPlayerX", "bombPlayerY", "bombPlayerZ", "bombAction", "bombSite")
-KEYS_FRAME_LEVEL = ("tick", "seconds", "clockTime", "bombPlanted", "secondsCalculated")
+KEYS_FRAME_LEVEL = ("tick", "seconds", "clockTime", "bombPlanted")
+KEYS_FRAME_LEVEL_EXTRA = ("secondsCalculated",)
 KEYS_METRIC_LEVEL = ("bombDistance", "mapControl", "totalDistance", "deltaDistance")
 KEYS_TEAM_LEVEL = ("side", "teamName", "teamEqVal", "alivePlayers", "totalUtility")
 # "inventory", "spotters", "isBlinded", "isAirborne", "isDucking", "isDuckingInProgress", "isUnDuckingInProgress", "isStanding", "isScoped", "isWalking", "isUnknown", "ping", "zoomLevel"
@@ -62,7 +64,7 @@ def process_round(dm: DataManager, round_idx: int, metrics: list[BaseMetric]) ->
     data_framelevel = [frame[key] for key in KEYS_FRAME_LEVEL]
 
     # include estimated seconds from bomb data for each frame
-    if bomb_data != None and frame["tick"] >= bomb_data["bombTick"]:
+    if bomb_data["bombTick"] != None and frame["tick"] >= bomb_data["bombTick"]:
       data_framelevel.append(frame["seconds"] + bomb_data["bombSeconds"])
     else:
       data_framelevel.append(frame["seconds"])
@@ -98,7 +100,7 @@ def process_round(dm: DataManager, round_idx: int, metrics: list[BaseMetric]) ->
     data_playerlevel = []
     # iterate through all players, but keep them in same order every iteration
     for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
-      data_playerlevel = [player[key] for key in KEYS_PLAYER_LEVEL]
+      data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
 
     row = data_roundlevel + data_bomblevel + data_framelevel + data_metriclevel + data_teamlevel + data_playerlevel
     rows_round.append(row)
@@ -131,19 +133,19 @@ def process_bomb_data(round):
     "bombSite": None
   }
   for bomb_event in round["bombEvents"]:
-    if bomb_event == "plant":
+    if bomb_event["bombAction"] == "plant":
       bomb_data = {
-        "bombTick": bomb_data["tick"],
-        "bombSeconds": bomb_data["seconds"],
-        "bombClockTime": bomb_data["clockTime"],
-        "bombPlayerSteamID": bomb_data["playerSteamID"],
-        "bombPlayerName": bomb_data["playerName"],
-        "bombPlayerTeam": bomb_data["playerTeam"],
-        "bombPlayerX": bomb_data["playerX"],
-        "bombPlayerY": bomb_data["playerY"],
-        "bombPlayerZ": bomb_data["playerZ"],
-        "bombAction": bomb_data["bombAction"],
-        "bombSite": bomb_data["bombSite"]
+        "bombTick": bomb_event["tick"],
+        "bombSeconds": bomb_event["seconds"],
+        "bombClockTime": bomb_event["clockTime"],
+        "bombPlayerSteamID": bomb_event["playerSteamID"],
+        "bombPlayerName": bomb_event["playerName"],
+        "bombPlayerTeam": bomb_event["playerTeam"],
+        "bombPlayerX": bomb_event["playerX"],
+        "bombPlayerY": bomb_event["playerY"],
+        "bombPlayerZ": bomb_event["playerZ"],
+        "bombAction": bomb_event["bombAction"],
+        "bombSite": bomb_event["bombSite"]
       }
   return bomb_data
 
@@ -162,14 +164,19 @@ def main():
 
   with open(output_filename, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerow(KEYS_ROUND_LEVEL + KEYS_BOMB_LEVEL + KEYS_FRAME_LEVEL + KEYS_METRIC_LEVEL + KEYS_TEAM_LEVEL + generate_keys_all_players())
+    writer.writerow(KEYS_ROUND_LEVEL + KEYS_BOMB_LEVEL + KEYS_FRAME_LEVEL + KEYS_FRAME_LEVEL_EXTRA + KEYS_METRIC_LEVEL + KEYS_TEAM_LEVEL + generate_keys_all_players())
 
     rows_total = 0
-    for round in range(dm.get_round_count()):
-      logger.info("Converting round %d" % round)
+    for round_idx in [0,2,4]:#range(dm.get_round_count()):
+      logger.info("Converting round %d" % round_idx)
+
+      # we need to swap mappings, because player sides switch here.
+      # WARNING: This only works if teams player in MR15 setting.
+      if round_idx == 15:
+        dm.swap_player_mapping()
 
       # Write straight to file, so in case of error not all converted rows are lost.
-      rows = process_round(round, [
+      rows = process_round(dm, round_idx, [
         BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False)
       ])
       writer.writerows(rows)
@@ -192,6 +199,40 @@ def test_round_mapping():
   rows_total+= len(rows)
   logger.info("SUCCESSFULLY COMPLETED: %d written in total." % rows_total)
 
+def test_player_mapping():
+  dm = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
+  logger.info("Processing match id: %s with %d rounds to console." % (dm.get_match_id(), dm.get_round_count()))
+
+  # iterate and process each frame
+  rowsT = []
+  rowsCT = []
+  ## error because teams switch sides...
+  for round_idx in [14,15,16]:
+    frames = dm._get_frames(round_idx)
+    logger.info("Processing round %d with %d frames." % (round_idx, len(frames)))
+
+    if round_idx == 15:
+      dm.swap_player_mapping()
+
+    for frame_idx, frame in enumerate(frames):
+      # iterate through all T players, but keep them in same order every iteration
+      team = frame["t"]
+      data_playerlevel = []
+      for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
+        data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
+      rowsT.append(data_playerlevel)
+
+      team = frame["ct"]
+      data_playerlevel = []
+      for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
+        data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
+      rowsCT.append(data_playerlevel)
+
+  for row in rowsT + rowsCT:
+    print(row[1], row[len(KEYS_PLAYER_LEVEL)+1], row[2*len(KEYS_PLAYER_LEVEL)+1], row[3*len(KEYS_PLAYER_LEVEL)+1], row[4*len(KEYS_PLAYER_LEVEL)+1])
+
+
 if __name__ == '__main__':
-  #main()
-  test_round_mapping()
+  main()
+  #test_round_mapping()
+  #test_player_mapping()
