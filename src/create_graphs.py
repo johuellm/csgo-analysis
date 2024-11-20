@@ -96,11 +96,10 @@ def process_round(dm: DataManager, round_idx: int) -> list[list[Any]]:
 
     # compute distances pairwise
     # CAUTION: distances from between 2 nodes can vary depending on direction (e.g., jump down, etc.).
-    #          this implies a multigraph for which networkx provides classes. Multigraphs can be powerful for some
-    #          applications, but many algorithms are not well-defined on such graphs.
-    #          by default networkx will overwrite edge attributes with the last time seen.
+    #          this implies a digraph for which networkx provides classes.
     #          As a result, we reverse the lists, so we start with bomb->player distance and end with player->bomb
     #          distances. This could be adjusted later.
+    #          Update: currently switched to DiGraph and edges are double, one for each direction.
     for node_a in reversed(nodes_data.keys()):
       for node_b in reversed(nodes_data.keys()):
         # ignore self loops

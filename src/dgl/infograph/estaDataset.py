@@ -130,7 +130,5 @@ if __name__ == "__main__":
   dataset = EstaDataset(raw_dir="/mnt/d/dev/csgo-analysis/graphs/00e7fec9-cee0-430f-80f4-6b50443ceacd")
   print("Number of graphs:", len(dataset))
   g = dataset[0]
-  # print("Node features:")
-  # print(g.ndata)
-  # print("Edge features")
-  # print(g.edata)
+  graphs, labels = map(list, zip(*dataset))
+  print(g)
