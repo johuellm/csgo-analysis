@@ -50,8 +50,14 @@ class BombDistanceMetric(BaseMetric):
       area = NAV[map_name][area_id]
       if area["areaName"].startswith("Bombsite"):
         # Use Area Distance Matrix if available, since it is faster
-        if len(AREA_DIST_MATRIX) > 0 and area_id in AREA_DIST_MATRIX:
-          current_bombsite_dist = AREA_DIST_MATRIX[area_id][area_bomb["areaId"]]["geodesic"]
+        # area distance matrix uses str as keys
+        # *TODO* copy pasted this from the create_graphy.py check if it works here as well
+        area_a_str = str(area_id)
+        area_b_str = str(area_bomb["areaId"])
+        if (map_name in AREA_DIST_MATRIX
+            and area_a_str in AREA_DIST_MATRIX[map_name]
+            and area_b_str in AREA_DIST_MATRIX[map_name][area_a_str]):
+          current_bombsite_dist = AREA_DIST_MATRIX[map_name][area_a_str][area_b_str]["geodesic"]
         # Else: calculate all distances pairwise
         else:
           if LOGGING_LEVEL == "DEBUG" and len(AREA_DIST_MATRIX) > 0: # this happened once, not sure if debug overhead is needed

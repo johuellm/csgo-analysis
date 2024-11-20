@@ -1,121 +1,221 @@
-from metrics.base_metric import BaseMetric
-from metrics.bomb_distance_metric import BombDistanceMetric
-from metrics.distance_metric import DistanceMetric
-from metrics.map_control_metric import MapControlMetric
-from metrics.teamhp_metric import TeamHpMetric
-from metrics.velocity_deviation_metric import VelocityDeviationMetric
-from models.data_manager import DataManager
+import logging
+import os
+import pickle
+from typing import Any
+
+import networkx as nx
+
 import stats
+from awpy.analytics.nav import find_closest_area, area_distance
+from awpy.data import NAV, AREA_DIST_MATRIX
+from models.data_manager import DataManager
+
+LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
+if LOGGING_LEVEL == "INFO":
+  logging.basicConfig(level=logging.INFO)
+elif LOGGING_LEVEL == "DEBUG":
+  logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+KEYS_ROUND_LEVEL = ("tFreezeTimeEndEqVal", "tRoundStartEqVal", "tRoundSpendMoney", "tBuyType")
+KEYS_FRAME_LEVEL = ("tick", "seconds", "bombPlanted")
+KEYS_PLAYER_LEVEL = ("x", "y", "z", "velocityX", "velocityY", "velocityZ", "viewX", "viewY", "hp", "armor", "activeWeapon", "totalUtility", "isAlive", "isDefusing", "isPlanting", "isReloading", "isInBombZone", "isInBuyZone", "equipmentValue", "equipmentValueFreezetimeEnd", "equipmentValueRoundStart", "cash", "cashSpendThisRound", "cashSpendTotal", "hasHelmet", "hasDefuse", "hasBomb")
+KEYS_BOMB_LEVEL = ("bombTick", "bombSeconds", "bombPlayerX", "bombPlayerY", "bombPlayerZ", "bombAction", "bombSite")
+
+# DGL library requires int as node ids
+# instead of randomly converting later, ensure that it is always 6,7,8, because
+# players are 1-5
+BOMB_NODE_INDEX = 6
+BOMBSITE_A_NODE_INDEX = 7
+BOMBSITE_B_NODE_INDEX = 8
 
 
-def process_round(dm: DataManager, round_idx: int, metrics: list[BaseMetric]) -> list[list[Any]]:
-  rows_round = []
+def process_round(dm: DataManager, round_idx: int) -> list[list[Any]]:
   round = dm.get_game_round(round_idx)
+  map_name = dm.get_map_name()
 
   # all variables on the round level --> graph data
-  data_roundlevel = [round[key] for key in KEYS_ROUND_LEVEL]
+  round_data = {key: round[key] for key in KEYS_ROUND_LEVEL}
 
   frames = dm._get_frames(round_idx)
   logger.info("Processing round %d with %d frames." % (round_idx, len(frames)))
 
   # store crucial bomb events for later analysis and estimating correct round ingame seconds.
-  # all variables on the
-  bomb_data = process_bomb_data(round)
-  data_bomblevel = [bomb_data[key] for key in KEYS_BOMB_LEVEL]
+  bomb_event_data = stats.process_bomb_data(round)
 
   # iterate and process each frame
+  graphs = []
+  error_frame_count = 0
+  total_frames = len(frames)
   for frame_idx, frame in enumerate(frames):
 
-
-    #### TODO
-    # create graph from values
-    # nodes: 5 players, 2 target sites, 1 bomb
-    # edges: distance between each node
-    # node attributes: health, resources, etc.
-    
-
-
-
     # check validity of frame
-    valid_frame, err_text = check_frame_validity(frame)
+    valid_frame, err_text = stats.check_frame_validity(frame)
     if not valid_frame:
-      logger.warning("Skipping frame %d entirely because %s." % (frame_idx, err_text))
+      logger.debug("Skipping frame %d entirely because %s." % (frame_idx, err_text))
       continue
 
-    # all variables on the frame level, they are added to each player observation later.
-    data_framelevel = [frame[key] for key in KEYS_FRAME_LEVEL]
+    # all variables on the frame level are added to the graph level data.
+    graph_data = {key: frame[key] for key in KEYS_FRAME_LEVEL} | round_data
 
     # include estimated seconds from bomb data for each frame
-    if bomb_data["bombTick"] != None and frame["tick"] >= bomb_data["bombTick"]:
-      data_framelevel.append(frame["seconds"] + bomb_data["bombSeconds"])
+    if bomb_event_data["bombTick"] != None and frame["tick"] >= bomb_event_data["bombTick"]:
+      graph_data["seconds"] = frame["seconds"] + bomb_event_data["bombSeconds"]
     else:
-      data_framelevel.append(frame["seconds"])
-
-    # all estimated metrics, they are added to each player observation later
-    ### todo some metrics need specific process_metric_round
-    ### todo: distance metrics should also be estimated for CT side
-    data_metriclevel = []
-    for metric in metrics:
-      try:
-        metric_value = metric.process_metric_frame(dm, round_idx, frame_idx)
-        data_metriclevel.append(metric_value)
-      except (ValueError, KeyError, ZeroDivisionError) as err:
-        ## TODO: Fix the ZeroDivisonError
-        logger.warning(err)
-        logger.warning("Ignoring metric for frame %d and adding NA instead for metric %s." % (frame_idx, metric.__class__))
-        data_metriclevel.append(None)
+      graph_data["seconds"] = frame["seconds"]
 
     # all variables on the team and player level for the T side
     team = frame["t"]
-    data_teamlevel_t = [team[key] for key in KEYS_TEAM_LEVEL]
-    data_playerlevel_t = []
+
+    ### Create Node Data
     # iterate through all players, but keep them in same order every iteration
+    nodes_data = {}
+    edges_data = []
     for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
-      data_playerlevel_t.extend([player[key] for key in KEYS_PLAYER_LEVEL])
+      node_data = {key: player[key] for key in KEYS_PLAYER_LEVEL}
+      node_data["areaId"] = find_closest_area(map_name, point=[node_data[key] for key in ("x", "y", "z")], flat=False)["areaId"]
+      nodes_data[player_idx] = node_data
 
-    # all variables on the team and player level for the CT side
-    team = frame["ct"]
-    data_teamlevel_ct = [team[key] for key in KEYS_TEAM_LEVEL]
-    data_playerlevel_ct = []
-    # iterate through all players, but keep them in same order every iteration
-    for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
-      data_playerlevel_ct.extend([player[key] for key in KEYS_PLAYER_LEVEL])
+    # add bomb node
+    #
+    nodes_data[BOMB_NODE_INDEX] = dm.get_bomb_info(round_idx, frame_idx)
+    nodes_data[BOMB_NODE_INDEX]["areaId"] = find_closest_area(map_name, point=[nodes_data["bomb"][key] for key in ("x", "y", "z")], flat=False)["areaId"]
 
-    row = (data_roundlevel + data_bomblevel + data_framelevel + data_metriclevel
-           + data_teamlevel_t + data_playerlevel_t + data_teamlevel_ct + data_playerlevel_ct)
-    rows_round.append(row)
-  return rows_round
+    ### Create Edge Data
+    # computes distances to bombsite
+    try:
+      distance_A, distance_B = distance_bombsites(dm, nodes_data)
+    except ValueError as exc:
+      logger.warning("Frame %d (%f%%): %s" % (frame_idx,frame_idx/total_frames, exc))
+      error_frame_count += 1
+      continue # skip errors
+    for key in nodes_data.keys():
+      edges_data.append((key, BOMBSITE_A_NODE_INDEX, {"dist":distance_A[key]}))
+      edges_data.append((key, BOMBSITE_B_NODE_INDEX, {"dist":distance_B[key]}))
 
+    # compute distances pairwise
+    # CAUTION: distances from between 2 nodes can vary depending on direction (e.g., jump down, etc.).
+    #          this implies a multigraph for which networkx provides classes. Multigraphs can be powerful for some
+    #          applications, but many algorithms are not well-defined on such graphs.
+    #          by default networkx will overwrite edge attributes with the last time seen.
+    #          As a result, we reverse the lists, so we start with bomb->player distance and end with player->bomb
+    #          distances. This could be adjusted later.
+    for node_a in reversed(nodes_data.keys()):
+      for node_b in reversed(nodes_data.keys()):
+        # ignore self loops
+        if node_a == node_b:
+          continue
+        edges_data.append((node_a, node_b, {"dist":_distance_internal(map_name, nodes_data[node_a]["areaId"], nodes_data[node_b]["areaId"])}))
+
+    # add target site nodes after all distance calcuations, so we can always just take the entire dict as input
+    nodes_data[BOMBSITE_A_NODE_INDEX] = None
+    nodes_data[BOMBSITE_B_NODE_INDEX] = None
+
+    # Creat graph from data
+    graph = nx.DiGraph(**graph_data)
+    graph.add_nodes_from(nodes_data)
+    graph.add_edges_from(edges_data)
+    graphs.append(graph)
+
+  return graphs
+
+def distance_bombsites(dm: DataManager, nodes: dict):
+  #logger.debug("Calculating shortest distances for %d nodes." % len(nodes))
+  map_name = dm.get_map_name()
+
+  if map_name not in NAV:
+    raise ValueError("Map not found.")
+
+  # find shortest distances to both bombsites:
+  closest_distances_A = {key: float("Inf") for key in nodes}
+  closest_distances_B = {key: float("Inf") for key in nodes}
+
+  ## Todo: find bombsite *plantable* area  with minimum distance from bomb
+  for map_area_id in NAV[map_name]:
+    map_area = NAV[map_name][map_area_id]
+    if map_area["areaName"].startswith("BombsiteA"):
+      for key, value in nodes.items():
+        target_area = nodes[key]["areaId"]
+        current_bombsite_dist = _distance_internal(map_name, map_area_id, target_area)
+        # Set closest distance
+        if current_bombsite_dist < closest_distances_A[key]:
+          closest_distances_A[key] = current_bombsite_dist
+
+    elif map_area["areaName"].startswith("BombsiteB"):
+      for key, value in nodes.items():
+        target_area = nodes[key]["areaId"]
+        current_bombsite_dist = _distance_internal(map_name, map_area_id, target_area)
+        # Set closest distance
+        if current_bombsite_dist < closest_distances_B[key]:
+          closest_distances_B[key] = current_bombsite_dist
+
+  # sanity check
+  for dist in list(closest_distances_A.values()) + list(closest_distances_B.values()):
+    if dist == float("Inf"):
+      raise ValueError("Could not find closest bombsite distances for at least one node.")
+
+  # collate to tuple and return
+  return closest_distances_A, closest_distances_B
+
+
+def _distance_internal(map_name, area_a, area_b):
+  # Use Area Distance Matrix if available, since it is faster
+  # distance matrix uses strings as key
+  area_a_str = str(area_a)
+  area_b_str = str(area_b)
+  if (map_name in AREA_DIST_MATRIX
+      and area_a_str in AREA_DIST_MATRIX[map_name]
+      and area_b_str in AREA_DIST_MATRIX[map_name][area_a_str]):
+    current_bombsite_dist = AREA_DIST_MATRIX[map_name][area_a_str][area_b_str]["geodesic"]
+  # Else: calculate distance from pairwise iteration over all areas in map
+  else:
+    if LOGGING_LEVEL == "DEBUG" and len(
+        AREA_DIST_MATRIX) > 0:  # this happened once, not sure if debug overhead is needed
+      logger.debug("Area matrix exists but does not contain areaid: %d" % area_a)
+    geodesic_path = area_distance(map_name=map_name, area_a=area_a, area_b=area_b,
+                                  dist_type="geodesic")
+    current_bombsite_dist = geodesic_path["distance"]
+  return current_bombsite_dist
+
+
+def store_graphs_to_list_of_dicts(filename, *graphs):
+  # from https://stackoverflow.com/questions/62615933/how-to-store-multiple-networkx-graphs-in-one-file
+  list_of_dicts = [nx.to_dict_of_dicts(graph) for graph in graphs]
+  with open(filename, 'wb') as f:
+    pickle.dump(list_of_dicts, f)
+
+
+def load_graphs_from_list_of_dicts(filename, create_using=nx.DiGraph):
+  # from https://stackoverflow.com/questions/62615933/how-to-store-multiple-networkx-graphs-in-one-file
+  with open(filename, 'rb') as f:
+    list_of_dicts = pickle.load(f)
+  return [create_using(graph) for graph in list_of_dicts]
 
 
 def main():
   dm = DataManager(stats.EXAMPLE_DEMO_PATH, do_validate=False)
-  output_filename = "testgraphs.csv"
-  stats.logger.info("Processing match id: %s with %d rounds to file %s." % (dm.get_match_id(), dm.get_round_count(), output_filename))
+  output_filename_template = "graph-rounds-%d.pkl"
+  logger.info("Processing match id: %s with %d rounds." % (dm.get_match_id(), dm.get_round_count()))
 
-  # with open(output_filename, 'w', newline='') as csvfile:
-  #   writer = csv.writer(csvfile)
-  #   writer.writerow(stats.generate_csv_header())
+  graphs_total = 0
+  for round_idx in range(dm.get_round_count()):
+    output_filename = output_filename_template % round_idx
+    logger.info("Converting round %d to file %s." % (round_idx, output_filename))
 
-  #   rows_total = 0
-  #   for round_idx in range(dm.get_round_count()):
-  #     stats.logger.info("Converting round %d" % round_idx)
+    # we need to swap mappings, because player sides switch here.
+    # WARNING: This only works if teams player in MR15 setting.
+    if round_idx == 15:
+      dm.swap_player_mapping()
 
-  #     # we need to swap mappings, because player sides switch here.
-  #     # WARNING: This only works if teams player in MR15 setting.
-  #     if round_idx == 15:
-  #       dm.swap_player_mapping()
+    # process round
+    graphs = process_round(dm, round_idx)
+    store_graphs_to_list_of_dicts(output_filename, *graphs)
 
-  #     # Write straight to file, so in case of error not all converted rows are lost.
-  #     rows = stats.process_round(dm, round_idx, [
-  #       BombDistanceMetric(), MapControlMetric(), DistanceMetric(cumulative=True), DistanceMetric(cumulative=False),
-  #       VelocityDeviationMetric(), TeamHpMetric('t'), TeamHpMetric('ct')
-  #     ])
-  #     writer.writerows(rows)
-  #     stats.logger.info("%d rows written to file." % len(rows))
-  #     rows_total+= len(rows)
-  #   stats.logger.info("SUCCESSFULLY COMPLETED: %d written in total." % rows_total)
+    logger.info("%d graphs written to file." % len(graphs))
+    graphs_total+= len(graphs)
+  logger.info("SUCCESSFULLY COMPLETED: %d graphs written in total." % graphs_total)
 
 
 if __name__ == '__main__':
-	main()
+  main()
