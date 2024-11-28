@@ -1,10 +1,17 @@
 import os
 import pickle
+from pathlib import Path
 
 import networkx as nx
 import dgl
-from dgl.data import DGLDataset
+import torch
+from dgl.data import DGLDataset, QM7bDataset
 from dgl.data.utils import load_graphs, save_graphs
+
+import create_graphs
+import stats
+
+
 class EstaDataset(DGLDataset):
   """ Template for customizing graph datasets in DGL.
 
@@ -42,23 +49,48 @@ class EstaDataset(DGLDataset):
     # download raw data to local disk
     pass
 
-  def _load_graphs_from_list_of_dicts(self, filename, create_using=nx.DiGraph):
-    # from https://stackoverflow.com/questions/62615933/how-to-store-multiple-networkx-graphs-in-one-file
-    with open(filename, 'rb') as f:
-      list_of_dicts = pickle.load(f)
-    return [create_using(graph) for graph in list_of_dicts]
-
   def process(self):
-    nxgraphs = []
+    graph_dicts = []
     for file_round in os.listdir(self.raw_dir):
-      nxgraphs.extend(self._load_graphs_from_list_of_dicts(os.path.join(self.raw_dir, file_round)))
+      filename = os.path.join(self.raw_dir, file_round)
+      if not filename.endswith(".pkl"): # skip other failes than pkl files
+        continue
+      with open(filename, 'rb') as f:
+        temp_graphs = pickle.load(f)
+        graph_dicts.extend(temp_graphs)
 
-    node_attributes = None # ["x", "y", "z"]
+    # convenience debug function for building weapon id mapping in create_graphs.py
+    # self._print_unique_weapons(graph_dicts)
+
+    # Create graphs from dictionary data
+    # TODO: probably better to straight create DGL graphs, but the interface for nx is nicer
+    nxgraphs = []
+    for g in graph_dicts:
+      graph = nx.DiGraph(**g["graph_data"])
+      graph.add_nodes_from([(key,self._num_to_float(node_data)) for (key,node_data) in g["nodes_data"].items()])
+      graph.add_edges_from(g["edges_data"])
+      nxgraphs.append(graph)
+
+    node_attributes = list(create_graphs.KEYS_PER_NODE)
     edge_attributes = ["dist",]
     # process data to a list of graphs and a list of labels
-    # todo remove conersion and do it in create_graphs.py
     self.graphs = [dgl.from_networkx(nx.convert_node_labels_to_integers(graph), node_attrs=node_attributes, edge_attrs=edge_attributes) for graph in nxgraphs]
-    self.label = [None] * len(nxgraphs)
+    self.label = torch.zeros([len(nxgraphs), 1], dtype=torch.float32)
+
+  def _num_to_float(self, node_data: dict):
+    # convert all relevant fields to floats
+    KEYS_FLOATS = ("x", "y", "z", "velocityX", "velocityY", "velocityZ", "viewX", "viewY")
+    for key in KEYS_FLOATS:
+      node_data[key] = float(node_data[key])
+    return node_data
+
+  def _print_unique_weapons(self, graph_dicts):
+    weapons = []
+    for g in graph_dicts:
+      for n in g["nodes_data"].values():
+        weapons.append(n["activeWeapon"])
+    weapons = set(weapons)
+    print(weapons)
 
   def __getitem__(self, idx):
     """ Get graph and label by index
@@ -79,55 +111,36 @@ class EstaDataset(DGLDataset):
     return len(self.graphs)
 
 
-def save(self):
-  """save the graph list and the labels"""
-  graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
-  save_graphs(str(graph_path), self.graphs, {'labels': self.label})
+  def save(self):
+    """save the graph list and the labels"""
+    graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
+    save_graphs(str(graph_path), self.graphs, {'labels': self.label})
 
 
-def has_cache(self):
-  graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
-  return os.path.exists(graph_path)
+  def has_cache(self):
+    graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
+    return os.path.exists(graph_path)
 
 
-def load(self):
-  graphs, label_dict = load_graphs(os.path.join(self.save_path, 'dgl_graph.bin'))
-  self.graphs = graphs
-  self.label = label_dict['labels']
+  def load(self):
+    graphs, label_dict = load_graphs(os.path.join(self.save_path, 'dgl_graph.bin'))
+    self.graphs = graphs
+    self.label = label_dict['labels']
 
 
-@property
-def num_labels(self):
-  """Number of labels for each graph, i.e. number of prediction tasks."""
-  return 0
+  @property
+  def num_labels(self):
+    """Number of labels for each graph, i.e. number of prediction tasks."""
+    return 0
 
-def __getitem__(self, idx):
-  r""" Get graph and label by index
-
-  Parameters
-  ----------
-  idx : int
-      Item index
-
-  Returns
-  -------
-  (:class:`dgl.DGLGraph`, Tensor)
-  """
-  return self.graphs[idx], self.label[idx]
-
-def __len__(self):
-  r"""Number of graphs in the dataset.
-
-  Return
-  -------
-  int
-  """
-  return len(self.graphs)
 
 
 if __name__ == "__main__":
   # test loading dataset
-  dataset = EstaDataset(raw_dir="/mnt/d/dev/csgo-analysis/graphs/00e7fec9-cee0-430f-80f4-6b50443ceacd")
+  #test = QM7bDataset()
+  data_folder = Path(__file__).parent / "../../../graphs/" / stats.EXAMPLE_DEMO_PATH.stem
+  data_folder = str(data_folder.resolve())
+  dataset = EstaDataset(raw_dir=data_folder)
   print("Number of graphs:", len(dataset))
   g = dataset[0]
   graphs, labels = map(list, zip(*dataset))

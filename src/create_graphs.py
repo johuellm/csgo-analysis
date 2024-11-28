@@ -1,6 +1,7 @@
 import logging
 import os
 import pickle
+from pathlib import Path
 from typing import Any
 
 import networkx as nx
@@ -15,13 +16,12 @@ if LOGGING_LEVEL == "INFO":
   logging.basicConfig(level=logging.INFO)
 elif LOGGING_LEVEL == "DEBUG":
   logging.basicConfig(level=logging.DEBUG)
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 KEYS_ROUND_LEVEL = ("tFreezeTimeEndEqVal", "tRoundStartEqVal", "tRoundSpendMoney", "tBuyType")
 KEYS_FRAME_LEVEL = ("tick", "seconds", "bombPlanted")
 KEYS_PLAYER_LEVEL = ("x", "y", "z", "velocityX", "velocityY", "velocityZ", "viewX", "viewY", "hp", "armor", "activeWeapon", "totalUtility", "isAlive", "isDefusing", "isPlanting", "isReloading", "isInBombZone", "isInBuyZone", "equipmentValue", "equipmentValueFreezetimeEnd", "equipmentValueRoundStart", "cash", "cashSpendThisRound", "cashSpendTotal", "hasHelmet", "hasDefuse", "hasBomb")
-KEYS_BOMB_LEVEL = ("bombTick", "bombSeconds", "bombPlayerX", "bombPlayerY", "bombPlayerZ", "bombAction", "bombSite")
+KEYS_PER_NODE = KEYS_PLAYER_LEVEL + ("areaId","nodeType")   # areaId and nodeType are added during processing
 
 # DGL library requires int as node ids
 # instead of randomly converting later, ensure that it is always 6,7,8, because
@@ -29,6 +29,36 @@ KEYS_BOMB_LEVEL = ("bombTick", "bombSeconds", "bombPlayerX", "bombPlayerY", "bom
 BOMB_NODE_INDEX = 6
 BOMBSITE_A_NODE_INDEX = 7
 BOMBSITE_B_NODE_INDEX = 8
+
+# PyTorch can only handle numeric tensors
+NODE_TYPE_PLAYER_INDEX = 1000   # players are more like bomb than targets (based on attributes)
+NODE_TYPE_BOMB_INDEX = 900
+NODE_TYPE_TARGET_INDEX = 1
+WEAPON_ID_MAPPING = {   # TODO: add missing weapons
+  '': 0,
+  'Decoy Grenade': 1,
+  'AK-47': 2,
+  'M4A1': 3,
+  'Incendiary Grenade': 4,
+  'Knife': 5,
+  'MAC-10': 6,
+  'USP-S': 7,
+  'Tec-9': 8,
+  'AWP': 9,
+  'Glock-18': 10,
+  'SSG 08': 11,
+  'HE Grenade': 12,
+  'Galil AR': 13,
+  'C4': 14,
+  'Smoke Grenade': 15,
+  'Molotov': 16,
+  'P250': 17,
+  'Flashbang': 18,
+  'SG 553': 19,
+  'Desert Eagle': 20,
+  'Zeus x27': 21
+}
+
 
 
 def process_round(dm: DataManager, round_idx: int) -> list[list[Any]]:
@@ -75,12 +105,15 @@ def process_round(dm: DataManager, round_idx: int) -> list[list[Any]]:
     for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
       node_data = {key: player[key] for key in KEYS_PLAYER_LEVEL}
       node_data["areaId"] = find_closest_area(map_name, point=[node_data[key] for key in ("x", "y", "z")], flat=False)["areaId"]
+      node_data["nodeType"] = NODE_TYPE_PLAYER_INDEX
+      node_data["activeWeapon"] = map_weapon_to_id(node_data["activeWeapon"])
       nodes_data[player_idx] = node_data
 
     # add bomb node
     #
     nodes_data[BOMB_NODE_INDEX] = dm.get_bomb_info(round_idx, frame_idx)
-    nodes_data[BOMB_NODE_INDEX]["areaId"] = find_closest_area(map_name, point=[nodes_data["bomb"][key] for key in ("x", "y", "z")], flat=False)["areaId"]
+    nodes_data[BOMB_NODE_INDEX]["areaId"] = find_closest_area(map_name, point=[nodes_data[BOMB_NODE_INDEX][key] for key in ("x", "y", "z")], flat=False)["areaId"]
+    nodes_data[BOMB_NODE_INDEX]["nodeType"] = NODE_TYPE_BOMB_INDEX
 
     ### Create Edge Data
     # computes distances to bombsite
@@ -108,16 +141,30 @@ def process_round(dm: DataManager, round_idx: int) -> list[list[Any]]:
         edges_data.append((node_a, node_b, {"dist":_distance_internal(map_name, nodes_data[node_a]["areaId"], nodes_data[node_b]["areaId"])}))
 
     # add target site nodes after all distance calcuations, so we can always just take the entire dict as input
-    nodes_data[BOMBSITE_A_NODE_INDEX] = None
-    nodes_data[BOMBSITE_B_NODE_INDEX] = None
+    nodes_data[BOMBSITE_A_NODE_INDEX] = {"nodeType": NODE_TYPE_TARGET_INDEX}
+    nodes_data[BOMBSITE_B_NODE_INDEX] = {"nodeType": NODE_TYPE_TARGET_INDEX}
 
-    # Creat graph from data
-    graph = nx.DiGraph(**graph_data)
-    graph.add_nodes_from(nodes_data)
-    graph.add_edges_from(edges_data)
+    # fill up all keys with empty values, because all nodes need same attributes for DGL
+    for key in nodes_data.keys():
+      nodes_data[key] = fill_keys(nodes_data[key])    # merging dicts creates a copy
+
+    # store data in convenient dict
+    graph = {
+      "graph_data": graph_data,
+      "nodes_data": nodes_data,
+      "edges_data": edges_data
+    }
     graphs.append(graph)
 
   return graphs
+
+def map_weapon_to_id(weaponName: str):
+  return WEAPON_ID_MAPPING[weaponName]
+
+def fill_keys(target: dict):
+  empty_dict = {key: 0 for key in KEYS_PER_NODE}   # None does not work as tensor
+  return empty_dict | target    # right dict takes precedence
+
 
 def distance_bombsites(dm: DataManager, nodes: dict):
   #logger.debug("Calculating shortest distances for %d nodes." % len(nodes))
@@ -177,24 +224,10 @@ def _distance_internal(map_name, area_a, area_b):
     current_bombsite_dist = geodesic_path["distance"]
   return current_bombsite_dist
 
-
-def store_graphs_to_list_of_dicts(filename, *graphs):
-  # from https://stackoverflow.com/questions/62615933/how-to-store-multiple-networkx-graphs-in-one-file
-  list_of_dicts = [nx.to_dict_of_dicts(graph) for graph in graphs]
-  with open(filename, 'wb') as f:
-    pickle.dump(list_of_dicts, f)
-
-
-def load_graphs_from_list_of_dicts(filename, create_using=nx.DiGraph):
-  # from https://stackoverflow.com/questions/62615933/how-to-store-multiple-networkx-graphs-in-one-file
-  with open(filename, 'rb') as f:
-    list_of_dicts = pickle.load(f)
-  return [create_using(graph) for graph in list_of_dicts]
-
-
 def main():
   dm = DataManager(stats.EXAMPLE_DEMO_PATH, do_validate=False)
-  output_filename_template = "graph-rounds-%d.pkl"
+  output_folder = Path(__file__).parent / "../graphs/" / stats.EXAMPLE_DEMO_PATH.stem
+  output_filename_template = str(output_folder / "graph-rounds-%d.pkl")
   logger.info("Processing match id: %s with %d rounds." % (dm.get_match_id(), dm.get_round_count()))
 
   graphs_total = 0
@@ -209,7 +242,8 @@ def main():
 
     # process round
     graphs = process_round(dm, round_idx)
-    store_graphs_to_list_of_dicts(output_filename, *graphs)
+    with open(output_filename, 'wb') as f:
+      pickle.dump(graphs, f)
 
     logger.info("%d graphs written to file." % len(graphs))
     graphs_total+= len(graphs)

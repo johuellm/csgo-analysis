@@ -1,12 +1,15 @@
 import argparse
+from pathlib import Path
 
 import dgl
-
 import torch as th
 from dgl.data import GINDataset
 from dgl.dataloading import GraphDataLoader
+
+import stats
 from evaluate_embedding import evaluate_embedding
 from model import InfoGraph
+from estaDataset import EstaDataset
 
 
 def argument():
@@ -81,13 +84,21 @@ if __name__ == "__main__":
 
     # load dataset from dgl.data.GINDataset
     dataset = GINDataset(args.dataname, self_loop=False)
+    data_folder = Path(__file__).parent / "../../../graphs/" / stats.EXAMPLE_DEMO_PATH.stem
+    data_folder = str(data_folder.resolve())
+    dataset = EstaDataset(raw_dir=data_folder)
+    print("data set loaded")
 
     # get graphs and labels
     graphs, labels = map(list, zip(*dataset))
+    print("graphs, labels mapped")
 
     # generate a full-graph with all examples for evaluation
     wholegraph = dgl.batch(graphs)
+    print("wholegraph = dgl.batch(graphs)")
+
     wholegraph.ndata["attr"] = wholegraph.ndata["attr"].to(th.float32)
+    print("th.float32")
 
     # create dataloader for batch training
     dataloader = GraphDataLoader(
