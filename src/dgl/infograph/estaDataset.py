@@ -4,7 +4,8 @@ from pathlib import Path
 
 import networkx as nx
 import dgl
-import torch
+import numpy as np
+import torch as th
 from dgl.data import DGLDataset, QM7bDataset
 from dgl.data.utils import load_graphs, save_graphs
 
@@ -58,12 +59,14 @@ class EstaDataset(DGLDataset):
       with open(filename, 'rb') as f:
         temp_graphs = pickle.load(f)
         graph_dicts.extend(temp_graphs)
+      break # TODO only 1 file for **DEBUG**
 
     # convenience debug function for building weapon id mapping in create_graphs.py
     # self._print_unique_weapons(graph_dicts)
 
     # Create graphs from dictionary data
     # TODO: probably better to straight create DGL graphs, but the interface for nx is nicer
+    #       but must ensure correct numbering and ids, to keep edges and nodes consistent with attributes
     nxgraphs = []
     for g in graph_dicts:
       graph = nx.DiGraph(**g["graph_data"])
@@ -75,7 +78,15 @@ class EstaDataset(DGLDataset):
     edge_attributes = ["dist",]
     # process data to a list of graphs and a list of labels
     self.graphs = [dgl.from_networkx(nx.convert_node_labels_to_integers(graph), node_attrs=node_attributes, edge_attrs=edge_attributes) for graph in nxgraphs]
-    self.label = torch.zeros([len(nxgraphs), 1], dtype=torch.float32)
+    self.label = th.zeros([len(nxgraphs), 1], dtype=th.float32)
+
+    # generate attribute feature matrix
+    for g in self.graphs:
+      attribute_matrix = th.zeros(g.num_nodes(), len(create_graphs.KEYS_PER_NODE), dtype=th.float32)
+      for i in range(g.num_nodes()):
+        attribute_matrix[i] = th.tensor([g.ndata[key][i] for key in g.ndata.keys()], dtype=th.float32)
+      g.ndata["attr"] = attribute_matrix
+
 
   def _num_to_float(self, node_data: dict):
     # convert all relevant fields to floats
@@ -140,7 +151,7 @@ if __name__ == "__main__":
   #test = QM7bDataset()
   data_folder = Path(__file__).parent / "../../../graphs/" / stats.EXAMPLE_DEMO_PATH.stem
   data_folder = str(data_folder.resolve())
-  dataset = EstaDataset(raw_dir=data_folder)
+  dataset = EstaDataset(raw_dir=data_folder, force_reload=True)
   print("Number of graphs:", len(dataset))
   g = dataset[0]
   graphs, labels = map(list, zip(*dataset))

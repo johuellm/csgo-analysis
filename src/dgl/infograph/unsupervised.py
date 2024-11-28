@@ -2,14 +2,18 @@ import argparse
 from pathlib import Path
 
 import dgl
+import numpy as np
 import torch as th
 from dgl.data import GINDataset
 from dgl.dataloading import GraphDataLoader
+from sklearn.cluster import DBSCAN
+from sklearn.manifold import TSNE
 
 import stats
 from evaluate_embedding import evaluate_embedding
 from model import InfoGraph
 from estaDataset import EstaDataset
+import matplotlib.pyplot as plt
 
 
 def argument():
@@ -83,7 +87,7 @@ if __name__ == "__main__":
     print(args)
 
     # load dataset from dgl.data.GINDataset
-    dataset = GINDataset(args.dataname, self_loop=False)
+    # dataset = GINDataset(args.dataname, self_loop=False, force_reload=True)
     data_folder = Path(__file__).parent / "../../../graphs/" / stats.EXAMPLE_DEMO_PATH.stem
     data_folder = str(data_folder.resolve())
     dataset = EstaDataset(raw_dir=data_folder)
@@ -106,7 +110,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         collate_fn=collate,
         drop_last=False,
-        shuffle=True,
+        shuffle=False,
     )
 
     in_dim = wholegraph.ndata["attr"].shape[1]
@@ -124,11 +128,11 @@ if __name__ == "__main__":
     wholefeat = wholegraph.ndata["attr"]
 
     emb = model.get_embedding(wholegraph, wholefeat).cpu()
-    res = evaluate_embedding(emb, labels, args.device)
+    # res = evaluate_embedding(emb, labels, args.device)
 
     """ Evaluate the initialized embeddings """
     """ using logistic regression and SVM(non-linear) """
-    print("logreg {:4f}, svc {:4f}".format(res[0], res[1]))
+    # print("logreg {:4f}, svc {:4f}".format(res[0], res[1]))
 
     best_logreg = 0
     best_logreg_epoch = 0
@@ -136,7 +140,7 @@ if __name__ == "__main__":
     best_svc_epoch = 0
 
     # Step 4: training epochs =============================================================== #
-    for epoch in range(args.epochs):
+    for epoch in range(100): #args.epochs):
         loss_all = 0
         model.train()
 
@@ -159,21 +163,73 @@ if __name__ == "__main__":
             # evaluate embeddings
             model.eval()
             emb = model.get_embedding(wholegraph, wholefeat).cpu()
-            res = evaluate_embedding(emb, labels, args.device)
+            # res = evaluate_embedding(emb, labels, args.device)
 
-            if res[0] > best_logreg:
-                best_logreg = res[0]
-                best_logreg_epoch = epoch
-
-            if res[1] > best_svc:
-                best_svc = res[1]
-                best_svc_epoch = epoch
-
-            print(
-                "best logreg {:4f}, epoch {} | best svc: {:4f}, epoch {}".format(
-                    best_logreg, best_logreg_epoch, best_svc, best_svc_epoch
-                )
-            )
+            # if res[0] > best_logreg:
+            #     best_logreg = res[0]
+            #     best_logreg_epoch = epoch
+            #
+            # if res[1] > best_svc:
+            #     best_svc = res[1]
+            #     best_svc_epoch = epoch
+            #
+            # print(
+            #     "best logreg {:4f}, epoch {} | best svc: {:4f}, epoch {}".format(
+            #         best_logreg, best_logreg_epoch, best_svc, best_svc_epoch
+            #     )
+            # )
 
     print("Training End")
     print("best logreg {:4f} ,best svc {:4f}".format(best_logreg, best_svc))
+
+    # create t-sne for visualization
+    embedding_array = np.array(emb)
+    X_embedded = TSNE(n_components=2).fit_transform(embedding_array)
+    plt.scatter(X_embedded[:, 0], X_embedded[:, 1])
+    plt.show()
+
+    # dbscan
+    db = DBSCAN(eps=15, min_samples=5).fit(embedding_array)
+    labels = db.labels_
+
+    # Number of clusters in labels, ignoring noise if present.
+    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+    n_noise_ = list(labels).count(-1)
+
+    print("Estimated number of clusters: %d" % n_clusters_)
+    print("Estimated number of noise points: %d" % n_noise_)
+
+    unique_labels = set(labels)
+    core_samples_mask = np.zeros_like(labels, dtype=bool)
+    core_samples_mask[db.core_sample_indices_] = True
+
+    colors = [plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))]
+    for k, col in zip(unique_labels, colors):
+        if k == -1:
+            # Black used for noise.
+            col = [0, 0, 0, 1]
+
+        class_member_mask = labels == k
+
+        xy = embedding_array[class_member_mask & core_samples_mask]
+        plt.plot(
+            xy[:, 0],
+            xy[:, 1],
+            "o",
+            markerfacecolor=tuple(col),
+            markeredgecolor="k",
+            markersize=14,
+        )
+
+        xy = embedding_array[class_member_mask & ~core_samples_mask]
+        plt.plot(
+            xy[:, 0],
+            xy[:, 1],
+            "o",
+            markerfacecolor=tuple(col),
+            markeredgecolor="k",
+            markersize=6,
+        )
+
+    plt.title(f"Estimated number of clusters: {n_clusters_}")
+    plt.show()
