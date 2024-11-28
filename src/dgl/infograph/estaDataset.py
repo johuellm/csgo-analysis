@@ -59,7 +59,6 @@ class EstaDataset(DGLDataset):
       with open(filename, 'rb') as f:
         temp_graphs = pickle.load(f)
         graph_dicts.extend(temp_graphs)
-      break # TODO only 1 file for **DEBUG**
 
     # convenience debug function for building weapon id mapping in create_graphs.py
     # self._print_unique_weapons(graph_dicts)
@@ -82,10 +81,18 @@ class EstaDataset(DGLDataset):
 
     # generate attribute feature matrix
     for g in self.graphs:
-      attribute_matrix = th.zeros(g.num_nodes(), len(create_graphs.KEYS_PER_NODE), dtype=th.float32)
+      # node attributes
+      node_attribute_matrix = th.zeros(g.num_nodes(), len(create_graphs.KEYS_PER_NODE), dtype=th.float32)
       for i in range(g.num_nodes()):
-        attribute_matrix[i] = th.tensor([g.ndata[key][i] for key in g.ndata.keys()], dtype=th.float32)
-      g.ndata["attr"] = attribute_matrix
+        node_attribute_matrix[i] = th.tensor([g.ndata[key][i] for key in g.ndata.keys()], dtype=th.float32)
+      g.ndata["attr"] = node_attribute_matrix
+
+      # edge attributes
+      edge_attribute_matrix = th.zeros(g.num_edges(), 1, dtype=th.float32)
+      for i in range(g.num_edges()):
+        edge_attribute_matrix[i] = th.tensor(g.edata["dist"][i], dtype=th.float32)
+      g.edata["attr"] = edge_attribute_matrix
+
 
 
   def _num_to_float(self, node_data: dict):

@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from dgl.nn import GINConv, NNConv, Set2Set
+from dgl.nn import GINConv, GINEConv, NNConv, Set2Set
 from dgl.nn.pytorch.glob import SumPooling
 from torch.nn import BatchNorm1d, GRU, Linear, ModuleList, ReLU, Sequential
 from utils import global_global_loss_, local_global_loss_
@@ -56,7 +56,7 @@ class FeedforwardNetwork(nn.Module):
 
 class GINEncoder(nn.Module):
     """
-    Encoder based on dgl.nn.GINConv &  dgl.nn.SumPooling
+    Encoder based on dgl.nn.GINEConv &  dgl.nn.SumPooling
     Parameters
     -----------
     in_dim: int
@@ -92,7 +92,7 @@ class GINEncoder(nn.Module):
                 Linear(n_in, n_out), ReLU(), Linear(hid_dim, hid_dim)
             )
 
-            conv = GINConv(apply_func=block, aggregator_type="sum")
+            conv = GINEConv(apply_func=block, aggregator_type="sum")
             bn = BatchNorm1d(hid_dim)
 
             self.convs.append(conv)
@@ -153,16 +153,16 @@ class InfoGraph(nn.Module):
             embedding_dim, embedding_dim
         )  # global discriminator (graph-level)
 
-    def get_embedding(self, graph, feat):
+    def get_embedding(self, graph, nfeat, efeat):
         # get_embedding function for evaluation the learned embeddings
 
         with th.no_grad():
-            global_emb, _ = self.encoder(graph, feat)
+            global_emb, _ = self.encoder(graph, nfeat, efeat)
 
         return global_emb
 
-    def forward(self, graph, feat, graph_id):
-        global_emb, local_emb = self.encoder(graph, feat)
+    def forward(self, graph, nfeat, efeat, graph_id):
+        global_emb, local_emb = self.encoder(graph, nfeat, efeat)
 
         global_h = self.global_d(global_emb)  # global hidden representation
         local_h = self.local_d(local_emb)  # local hidden representation

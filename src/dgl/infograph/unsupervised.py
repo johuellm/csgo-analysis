@@ -6,6 +6,7 @@ import numpy as np
 import torch as th
 from dgl.data import GINDataset
 from dgl.dataloading import GraphDataLoader
+from dgl.nn.pytorch import GNNExplainer
 from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
 
@@ -87,10 +88,10 @@ if __name__ == "__main__":
     print(args)
 
     # load dataset from dgl.data.GINDataset
-    # dataset = GINDataset(args.dataname, self_loop=False, force_reload=True)
-    data_folder = Path(__file__).parent / "../../../graphs/" / stats.EXAMPLE_DEMO_PATH.stem
-    data_folder = str(data_folder.resolve())
-    dataset = EstaDataset(raw_dir=data_folder)
+    dataset = GINDataset(args.dataname, self_loop=False, force_reload=True)
+    # data_folder = Path(__file__).parent / "../../../graphs/" / stats.EXAMPLE_DEMO_PATH.stem
+    # data_folder = str(data_folder.resolve())
+    # dataset = EstaDataset(raw_dir=data_folder)
     print("data set loaded")
 
     # get graphs and labels
@@ -110,10 +111,13 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         collate_fn=collate,
         drop_last=False,
-        shuffle=False,
+        shuffle=True,
     )
 
     in_dim = wholegraph.ndata["attr"].shape[1]
+
+    ### **TODO** edge featuers in InfoGraph with GINEConv
+    ### TODO: what value is needed for in_dim?
 
     # Step 2: Create model =================================================================== #
     model = InfoGraph(in_dim, args.hid_dim, args.n_layers)
@@ -127,7 +131,7 @@ if __name__ == "__main__":
     wholegraph = wholegraph.to(args.device)
     wholefeat = wholegraph.ndata["attr"]
 
-    emb = model.get_embedding(wholegraph, wholefeat).cpu()
+    emb = model.get_embedding(wholegraph, whole_nfeat, whole_efeat).cpu()
     # res = evaluate_embedding(emb, labels, args.device)
 
     """ Evaluate the initialized embeddings """
@@ -182,11 +186,23 @@ if __name__ == "__main__":
     print("Training End")
     print("best logreg {:4f} ,best svc {:4f}".format(best_logreg, best_svc))
 
+    # eval mode and get embedding for whole graph
+    model.eval()
+    emb = model.get_embedding(wholegraph, wholefeat).cpu()
+
     # create t-sne for visualization
     embedding_array = np.array(emb)
     X_embedded = TSNE(n_components=2).fit_transform(embedding_array)
     plt.scatter(X_embedded[:, 0], X_embedded[:, 1])
     plt.show()
+
+    # feature explainer TODO doesnt currently work with model
+    # explainer = GNNExplainer(model, num_hops=1)
+    # graph = dataset[0][0]
+    # feat = graph.ndata["attr"]
+    # graph_id = 0
+    # feat_mask, edge_mask = explainer.explain_graph(wholegraph, wholefeat)
+    # print(feat_mask)
 
     # dbscan
     db = DBSCAN(eps=15, min_samples=5).fit(embedding_array)
