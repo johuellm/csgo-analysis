@@ -10,6 +10,8 @@ Make sure the versions of Python mentioned above are installed.
 
 It is recommended to [create and activate a virtual environment](https://docs.python.org/3/tutorial/venv.html).
 
+Requires awpy 1.3.1 @ https://github.com/pnxenopoulos/awpy/tree/f0bbee8a2b95d650210f34f70468f6b2457a6e4d
+
 `pip install -r requirements.txt`
 
 ## Usage
