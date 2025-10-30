@@ -9,7 +9,7 @@ jinja2
 joblib
 matplotlib
 networkx
-numpy
+numpy==2.2.6
 pandas
 plotly
 pillow
