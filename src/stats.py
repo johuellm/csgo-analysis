@@ -10,7 +10,7 @@ from metrics.distance_metric import DistanceMetric
 from metrics.map_control_metric import MapControlMetric
 from metrics.teamhp_metric import TeamHpMetric
 from metrics.velocity_deviation_metric import VelocityDeviationMetric
-from models.data_manager import DataManager
+from datamodel.data_manager import DataManager
 
 LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
 if LOGGING_LEVEL == "INFO":

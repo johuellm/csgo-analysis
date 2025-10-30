@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Generator
 
 from awpy.types import BombInfo, Game, GameFrame, GameRound, GrenadeAction, PlayerInfo
-from models.player import Player
-from models.round_events import RoundActions
-from models.round_stats import RoundStats
-from models.routine import FrameCount, Routine
-from models.side_type import SideType
-from models.team_names import TeamNames
-from models.team_routines import BothTeamsRoutines, TeamRoutines
-from models.team_scores import TeamScore
+from datamodel.player import Player
+from datamodel.round_events import RoundActions
+from datamodel.round_stats import RoundStats
+from datamodel.routine import FrameCount, Routine
+from datamodel.side_type import SideType
+from datamodel.team_names import TeamNames
+from datamodel.team_routines import BothTeamsRoutines, TeamRoutines
+from datamodel.team_scores import TeamScore
 from pydantic import TypeAdapter, ValidationError
 
 # Path to a demo file for testing

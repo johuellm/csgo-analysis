@@ -3,7 +3,7 @@ from enum import Enum
 from tkinter import ttk
 
 from awpy.types import PlayerInfo
-from models.side_type import SideType
+from datamodel.side_type import SideType
 
 
 class PlayerInfoFrame(ttk.Frame):

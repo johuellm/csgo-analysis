@@ -1,9 +1,9 @@
 from collections import defaultdict, Counter
 from pathlib import Path
 from typing import overload
-from models.data_manager import DataManager, get_map_name_from_demo_file_without_parsing
-from models.demo_metadata import DemoMetadata
-from models.routine import DEFAULT_ROUTINE_LENGTH, FrameCount, Routine
+from datamodel.data_manager import DataManager, get_map_name_from_demo_file_without_parsing
+from datamodel.demo_metadata import DemoMetadata
+from datamodel.routine import DEFAULT_ROUTINE_LENGTH, FrameCount, Routine
 from awpy.visualization.plot import position_transform
 
 class TilizedRoutine(Routine):

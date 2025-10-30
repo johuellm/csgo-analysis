@@ -4,12 +4,13 @@ import pickle
 
 import joblib
 import torch
-from gnn import GNN
+from ml.gnn import GNN
 from sklearn.preprocessing import OneHotEncoder
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import add_self_loops
+
 
 
 class GraphDatasetPredictor(Dataset):
@@ -19,11 +20,13 @@ class GraphDatasetPredictor(Dataset):
         area_encoder=None,
         label_to_id=None,
         node_type_encoder=None,
+        tactics_labels=None
     ):
         super().__init__()
         self.graph_root_dir = graph_root_dir
         self.all_graphs = []
         self.area_ids = []
+        self.tactics_labels_path = tactics_labels
 
         # Search all folders for the graphs
         for root, _, files in os.walk(self.graph_root_dir):
@@ -98,8 +101,10 @@ class GraphDatasetPredictor(Dataset):
         if label_to_id is not None:
             self.label_to_id = label_to_id
         else:
+            if self.tactics_labels_path is None:
+                raise ValueError("Either label to id  model or tactics_label path is needed.")
             with open(
-                "research_project\\tactic_labels\\de_dust2_tactics.json", "r"
+                self.tactics_labels_path, "r"
             ) as f:
                 tactics = json.load(f)
             strategies = [item["id"] for item in tactics]
@@ -201,29 +206,31 @@ class GraphDatasetPredictor(Dataset):
 
 
 class Predictor:
-    def __init__(self, model_path, dataset_path):
+    def __init__(self, model_path, dataset_path, labels_path):
         self.model_path = model_path
-        self.model_path = "research_project/models/checkpoint11.pt"
+        self.mlmodel = model_path / "checkpoint11.pt"
         self.dataset_path = dataset_path
+        self.labels_path = labels_path / "de_dust2_tactics.json"
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Load unlabeled data
         print("Loading unlabeled data...")
-        label_to_id = joblib.load("research_project/models/label_to_id.pkl")
-        area_encoder = joblib.load("research_project/models/area_encoder.pkl")
-        node_type_encoder = joblib.load("research_project/models/node_type_encoder.pkl")
+        label_to_id = joblib.load(self.model_path / "label_to_id.pkl")
+        area_encoder = joblib.load(self.model_path / "area_encoder.pkl")
+        node_type_encoder = joblib.load(self.model_path / "node_type_encoder.pkl")
         self.id_to_label = {v: k for k, v in label_to_id.items()}
         dataset = GraphDatasetPredictor(
             self.dataset_path,
             label_to_id=label_to_id,
             area_encoder=area_encoder,
             node_type_encoder=node_type_encoder,
+            tactics_labels=self.labels_path
         )
         self.loader = DataLoader(dataset)
 
         print(f"Dataset loaded with {len(dataset)} graphs.")
-        checkpoint = torch.load(self.model_path)
+        checkpoint = torch.load(self.mlmodel)
 
         self.model = GNN(
             input_dim=checkpoint["input_dim"],
@@ -237,7 +244,7 @@ class Predictor:
 
         self.model.to(self.device)
         self.model.eval()
-        print(f"Model loaded from {self.model_path}")
+        print(f"Model loaded from {self.mlmodel}")
 
     def predict(self):
         predictions = []

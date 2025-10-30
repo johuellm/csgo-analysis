@@ -1,5 +1,6 @@
 import functools
 import json
+import os
 import pickle
 import subprocess
 import sys
@@ -11,14 +12,14 @@ from tkinter import filedialog, messagebox, simpledialog
 from awpy.visualization.plot import plot_map
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from models.data_manager import DataManager
-from models.position_tracker import PositionTracker
-from models.routine_tracker import RoutineTracker
-from models.side_type import SideType
-from models.visualization_manager import VisualizationManager
-from predictor import Predictor
-from tk_components.imports import CanvasTooltip
-from tk_components.subcomponents import (
+from datamodel.data_manager import DataManager
+from datamodel.position_tracker import PositionTracker
+from datamodel.routine_tracker import RoutineTracker
+from datamodel.side_type import SideType
+from datamodel.visualization_manager import VisualizationManager
+from ml.predictor import Predictor
+from gui.tk_components.imports import CanvasTooltip
+from gui.tk_components.subcomponents import (
     FrameWithScrollableInnerFrame,
     HeatmapMenuButtonNames,
     PlayerInfoFrame,
@@ -671,7 +672,7 @@ class CanvasPanel(ttk.Frame):
         default_figure, _ = plot_map(map_type="simpleradar")
         self.canvas = FigureCanvasTkAgg(
             default_figure, self
-        )  # Note: this instantiation is problematic - see the comment in main() in src/gui.py. Figure out a way to fix this at some point.
+        )  # Note: this instantiation is problematic - see the comment in main() in src/gui/gui_app.py. Figure out a way to fix this at some point.
         self.__prep_canvas_widget()
 
         self.pack(side="top", fill="both", expand=True)
@@ -1178,9 +1179,7 @@ class TimelineBar(ttk.Frame):
 
         match_id = self.parent.dm.get_match_id()
         output_file = (
-            Path.cwd()
-#            / "research_project"
-            / "tactic_labels"
+            Path(os.environ.get("LABELS_OUTPUT_DIR"))
             / f"{self.parent.dm.get_map_name()}"
             / match_id
             / f"{match_id}_{round_index_adjusted}.json"
@@ -1485,9 +1484,7 @@ class TacticsSidebar(ttk.Frame):
             widget.destroy()
 
         input_path = (
-            Path.cwd()
-#            / "research_project"
-            / "tactic_labels"
+            Path(os.environ.get("LABELS_OUTPUT_DIR"))
             / f"{self.parent.dm.get_map_name()}_tactics.json"
         )
 
@@ -1526,9 +1523,7 @@ class TacticsSidebar(ttk.Frame):
         frame_index = self.parent.vm.current_frame_index
 
         output_path = (
-            Path.cwd()
-#            / "research_project"
-            / "tactic_labels"
+            Path(os.environ.get("LABELS_OUTPUT_DIR"))
             / f"{self.parent.dm.get_map_name()}"
             / match_id
         )
@@ -1607,9 +1602,7 @@ class PredictionLabel(ttk.Frame):
             return
 
         label_folder = (
-            Path.cwd()
-#            / "research_project"
-            / "graphs"
+            Path(os.environ.get("GRAPHS_OUTPUT_DIR"))
             / f"{self.parent.dm.get_match_id()}"
         )
 
@@ -1652,12 +1645,10 @@ class PredictionLabel(ttk.Frame):
 
     def run_predictor(self):
         self.predictor = Predictor(
-#            Path.cwd() / "research_project" / "models" / "checkpoint7.pt",
-            Path.cwd() / "models" / "checkpoint7.pt",
-            Path.cwd()
-#            / "research_project"
-            / "graphs"
+            Path(os.environ.get("MODELS_OUTPUT_DIR")),
+            Path(os.environ.get("GRAPHS_OUTPUT_DIR"))
             / f"{self.parent.dm.get_match_id()}",
+            Path(os.environ.get("LABELS_OUTPUT_DIR"))
         )
         # Get raw output (flat list of predictions)
         raw_output = self.predictor.predict()

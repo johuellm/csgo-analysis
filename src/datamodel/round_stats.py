@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from models.side_type import SideType
-from models.player import Player
+from datamodel.side_type import SideType
+from datamodel.player import Player
 
 @dataclass
 class RoundStats:

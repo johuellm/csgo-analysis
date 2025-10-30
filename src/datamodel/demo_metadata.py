@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from models.data_manager import DataManager
-from models.side_type import SideType
+from datamodel.data_manager import DataManager
+from datamodel.side_type import SideType
 
 @dataclass(frozen=True)
 class TeamPerformanceRecord:

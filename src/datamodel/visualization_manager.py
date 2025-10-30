@@ -9,11 +9,11 @@ from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.quiver import Quiver
 from matplotlib.text import Text
-from models.data_manager import DataManager
-from models.position_tracker import PositionTracker
-from models.routine import DEFAULT_ROUTINE_LENGTH, Routine
-from models.routine_tracker import RoutineTracker, TilizedRoutine
-from models.side_type import SideType
+from datamodel.data_manager import DataManager
+from datamodel.position_tracker import PositionTracker
+from datamodel.routine import DEFAULT_ROUTINE_LENGTH, Routine
+from datamodel.routine_tracker import RoutineTracker, TilizedRoutine
+from datamodel.side_type import SideType
 
 
 class VisualizationManager:

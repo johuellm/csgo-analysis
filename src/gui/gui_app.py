@@ -1,5 +1,7 @@
 import tkinter as tk
 
+from dotenv import load_dotenv
+
 from tk_components.components import MainApplication
 
 # Time to design a GUI? # TODO.
@@ -19,6 +21,8 @@ def center_root(root: tk.Tk):
     root.deiconify()
 
 def main():
+    load_dotenv()
+
     root = tk.Tk()
     root.attributes('-alpha', 0.0) # Hide the window in case centering it makes it flicker around
     root.title("CS:GO Demo Visualizer")

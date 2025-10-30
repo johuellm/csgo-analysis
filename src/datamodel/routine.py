@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import NewType, overload
 
-from models.side_type import SideType
+from datamodel.side_type import SideType
 
 # This NewType exists to make sure we don't pass any kind of number in for FrameCount.
 # When creating a value of type FrameCount, we must be expressly aware that this variable we're making represents a frame count.

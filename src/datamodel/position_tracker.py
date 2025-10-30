@@ -1,6 +1,6 @@
 from collections import Counter
 
-from models.data_manager import DataManager
+from datamodel.data_manager import DataManager
 
 from awpy.visualization.plot import position_transform
 
