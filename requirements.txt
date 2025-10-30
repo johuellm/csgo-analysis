@@ -2,6 +2,7 @@
 awpy==1.3.1
 babel
 dotenv
+discord
 extensions
 imageio
 jinja2
@@ -13,6 +14,7 @@ pandas
 plotly
 pillow
 pydantic
+ruff
 scikit-learn
 scipy
 shapely

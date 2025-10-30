@@ -29,7 +29,7 @@ from gui.tk_components.subcomponents import (
 # TODO: Re-create more Noesis functionality.
 # DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
 # DONE 2. A bar on the right that has a list of players. Each entry has their hp, armor, name, weapon, money, utility, and secondary. The HP is also visualized as a a bar (colored with the team color) that is filled in proportion to the player's HP.
-# Note: consider turning some of the text into images for better readabiliity.
+# Note: consider turning some of the text into images for better readability.
 # DONE 3. A bar below the round-select bar, a scrubbable timeline that has markers for events that happened during the round. To the left of this bar is the pause/play button.
 # DONE 4. A bar at the top that looks like: <Name of Team 1> - <Score of Team 1> | <Round Timer> | <Score of Team 2> - <Name of Team 2>. The team names and scores are updated as the rounds progress.
 # DONE 5. Plot grenades (and their trajectories) on the map.
@@ -1440,7 +1440,7 @@ class PlayerStatusSidebar(ttk.Frame):
         )
 
         # If the set of player names is different from what the frames are currently displaying, we know that not every player has a frame allocated to them.
-        # So, re-assign all of the frames to this new set of players.
+        # So, re-assign all the frames to this new set of players.
         do_forget_previous_owner = False
         previous_frame_owners = set(player_info_frame_map.keys())
         if previous_frame_owners != player_names:

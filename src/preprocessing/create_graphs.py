@@ -15,7 +15,7 @@ import stats
 from awpy.analytics.nav import area_distance, find_closest_area
 from awpy.data import AREA_DIST_MATRIX, NAV
 from dotenv import load_dotenv
-from models.data_manager import DataManager
+from datamodel.data_manager import DataManager
 from tqdm import tqdm
 from utils.discord_webhook import send_progress_embed
 from utils.download_demo_from_repo import get_demo_files_from_list

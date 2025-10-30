@@ -1,0 +1,33 @@
+name: Run Tests
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+
+            - name: Set up Python 3.12
+              uses: actions/setup-python@v6
+              with:
+                  python-version: 3.12
+
+            - name: Install dependencies
+              run: pip install -r requirements.txt
+
+            - name: Copy .env file
+              run: |
+                cp ".env.example" ".env"
+                done
+
+            - name: Run tests
+              run: pytest
+
+            - name Run linter
+              run: ruff

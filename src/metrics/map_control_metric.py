@@ -11,7 +11,7 @@ from awpy.visualization.plot import plot_map, _plot_map_control_from_dict
 from matplotlib import pyplot as plt
 
 from metrics.base_metric import BaseMetric
-from models.data_manager import DataManager
+from datamodel.data_manager import DataManager
 
 logger = logging.getLogger(__name__)
 
@@ -348,7 +348,6 @@ def _bfs(
 
 if __name__ == "__main__":
   import os
-  from pathlib import Path
   demo_path = os.path.join(os.getcwd(), 'demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json')
   # demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   # demo_path = Path(__file__).parent / '../../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'

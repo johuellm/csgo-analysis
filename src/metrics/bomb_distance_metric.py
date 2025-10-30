@@ -9,7 +9,7 @@ from matplotlib import patches
 from typing_extensions import override
 
 from metrics.base_metric import BaseMetric
-from models.data_manager import DataManager
+from datamodel.data_manager import DataManager
 
 LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
 if LOGGING_LEVEL == "INFO":

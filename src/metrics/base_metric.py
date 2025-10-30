@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from awpy.data import NAV
 
-from models.data_manager import DataManager
+from datamodel.data_manager import DataManager
 
 logger = logging.getLogger(__name__)
 
