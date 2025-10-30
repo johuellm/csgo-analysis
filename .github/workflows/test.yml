@@ -29,5 +29,5 @@ jobs:
             - name: Run tests
               run: pytest
 
-            - name Run linter
+            - name: Run linter
               run: ruff
