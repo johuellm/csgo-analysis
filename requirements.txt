@@ -1,5 +1,5 @@
 # python3.12, pip3
-#awpy==1.3.1    ;is provided in repository as libs because of invalid dependency requirements (deprecated numpy)
+#awpy==1.3.1    ;must be installed separately with --no-dependecies, because package enforces numpy<1.25
 babel
 dotenv
 discord
