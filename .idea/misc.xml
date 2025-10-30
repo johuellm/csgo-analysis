@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.11.0rc1 WSL (Ubuntu-20.04): (/usr/bin/python3.11)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.12.3 WSL (Ubuntu): (/home/joschi/.virtualenvs/csgo-analysis/bin/python)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.12.3 WSL (Ubuntu): (/mnt/m/dev/csgo-analysis/venv/bin/python3)" project-jdk-type="Python SDK" />
 </project>
