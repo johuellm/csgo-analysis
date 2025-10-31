@@ -16,10 +16,10 @@ Requires awpy 1.3.1 @ https://github.com/pnxenopoulos/awpy/tree/f0bbee8a2b95d650
 Due to broken dependencies in old awpy, install it in pip via argument `--no-deps`.
 
 ```bash
-# add deadsnakes because of old python3 versions
+# add deadsnakes because of python3 versions
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt update
-sudo apt install -y python3.12 python3.12-venv python3.12-dev
+sudo apt install -y python3.12 python3.12-venv python3.12-dev python3.12-tk
 
 git clone https://github.com/johuellm/csgo-analysis
 cd csgo-analysis
@@ -38,6 +38,7 @@ venv/bin/pip install --no-deps awpy==1.3.1
 Run the GUI.
 ```bash
 # in csgo-analysis root folder
+cp ".env.example" ".env"
 PYTHONPATH=src/ venv/bin/python src/gui/gui_app.py
 ```
 
