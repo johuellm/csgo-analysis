@@ -53,7 +53,7 @@ demo_dir = Path("research_project/demos/dust2")
 unknown_weapons = {}
 
 for file in demo_dir.glob("*.json"):
-    with open(file, "r") as f:
+    with open(file) as f:
         try:
             demo = json.load(f)
         except Exception as e:

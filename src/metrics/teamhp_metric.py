@@ -1,7 +1,7 @@
 import logging
 
-from metrics.base_metric import BaseMetric
 from datamodel.data_manager import DataManager
+from metrics.base_metric import BaseMetric
 
 logger = logging.getLogger(__name__)
 

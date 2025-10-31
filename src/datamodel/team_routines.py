@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+
 from datamodel.routine import Routine
+
 
 @dataclass
 class TeamRoutines:

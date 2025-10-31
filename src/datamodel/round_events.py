@@ -1,5 +1,14 @@
 from dataclasses import dataclass, field
-from awpy.types import KillAction, DamageAction, GrenadeAction, BombAction, WeaponFireAction, FlashAction
+
+from awpy.types import (
+    BombAction,
+    DamageAction,
+    FlashAction,
+    GrenadeAction,
+    KillAction,
+    WeaponFireAction,
+)
+
 
 @dataclass
 class RoundActions:

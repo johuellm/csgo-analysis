@@ -11,12 +11,13 @@ from multiprocessing import Manager, Process
 from pathlib import Path
 from typing import Any
 
-import stats
 from awpy.analytics.nav import area_distance, find_closest_area
 from awpy.data import AREA_DIST_MATRIX, NAV
 from dotenv import load_dotenv
-from datamodel.data_manager import DataManager
 from tqdm import tqdm
+
+import stats
+from datamodel.data_manager import DataManager
 from utils.discord_webhook import send_progress_embed
 from utils.download_demo_from_repo import get_demo_files_from_list
 from utils.logging_config import get_logger
@@ -187,7 +188,7 @@ def process_round(
 
         # include estimated seconds from bomb data for each frame
         if (
-            bomb_event_data["bombTick"] != None
+            bomb_event_data["bombTick"] is not None
             and frame["tick"] >= bomb_event_data["bombTick"]
         ):
             graph_data["seconds"] = frame["seconds"] + bomb_event_data["bombSeconds"]
@@ -240,7 +241,7 @@ def process_round(
             if queue and key:
                 queue.put((key, 1))
             continue  # skip errors
-        for k in nodes_data.keys():
+        for k in nodes_data:
             edges_data.append((k, BOMBSITE_A_NODE_INDEX, {"dist": distance_A[k]}))
             edges_data.append((k, BOMBSITE_B_NODE_INDEX, {"dist": distance_B[k]}))
 
@@ -270,7 +271,7 @@ def process_round(
         nodes_data[BOMBSITE_B_NODE_INDEX] = {"nodeType": NODE_TYPE_TARGET_INDEX}
 
         # fill up all keys with empty values, because all nodes need same attributes for DGL
-        for k in nodes_data.keys():
+        for k in nodes_data:
             nodes_data[k] = fill_keys(nodes_data[k])  # merging dicts creates a copy
 
         # store data in convenient dict
@@ -315,7 +316,7 @@ def distance_bombsites(dm: DataManager, nodes: dict, logger=None):
     for map_area_id in NAV[map_name]:
         map_area = NAV[map_name][map_area_id]
         if map_area["areaName"].startswith("BombsiteA"):
-            for key, value in nodes.items():
+            for key, _value in nodes.items():
                 target_area = nodes[key]["areaId"]
                 current_bombsite_dist = _distance_internal(
                     map_name, map_area_id, target_area
@@ -325,7 +326,7 @@ def distance_bombsites(dm: DataManager, nodes: dict, logger=None):
                     closest_distances_A[key] = current_bombsite_dist
 
         elif map_area["areaName"].startswith("BombsiteB"):
-            for key, value in nodes.items():
+            for key, _value in nodes.items():
                 target_area = nodes[key]["areaId"]
                 current_bombsite_dist = _distance_internal(
                     map_name, map_area_id, target_area
@@ -363,8 +364,7 @@ def distance_bombsites(dm: DataManager, nodes: dict, logger=None):
                     dist_dict[key] = next_dist
                 else:
                     raise ValueError(
-                        "Could not estimate closest bombsite distances for node '%s'."
-                        % key
+                        f"Could not estimate closest bombsite distances for node '{key}'."
                     )
 
     # collate to tuple and return
@@ -466,7 +466,7 @@ async def process_single_demo(
         # Load per-frame tactic labels for this round
         round_label_path = tactic_dir / f"{dm.get_match_id()}_{round_idx + 1}.json"
         if round_label_path.exists():
-            with open(round_label_path, "r") as f:
+            with open(round_label_path) as f:
                 frame_tactic_map = json.load(f)
         else:
             logger.warning(
@@ -613,7 +613,7 @@ async def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=Fals
 
     print(f"Found {len(demo_filenames)} demo filenames in the demo filenames list.")
 
-    with open(create_graphs_filenames, "r") as f:
+    with open(create_graphs_filenames) as f:
         filtered_demos = json.load(f)
     print(
         f"Found {len(filtered_demos)} demo filenames in the scheduled process file list."

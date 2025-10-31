@@ -1,6 +1,7 @@
 import tkinter as tk
 import tkinter.ttk as ttk
 
+
 # From https://stackoverflow.com/a/41080067 - thanks!
 class CanvasTooltip:
     '''

@@ -2,10 +2,9 @@
 
 import json
 import os
-from typing import List
 
 
-def get_all_files_in_directory(directory: str) -> List[str]:
+def get_all_files_in_directory(directory: str) -> list[str]:
     """
     Get all files in a directory.
 
@@ -16,13 +15,13 @@ def get_all_files_in_directory(directory: str) -> List[str]:
         List[str]: A list of filenames.
     """
     file_names = []
-    for root, _, files in os.walk(directory):
+    for _root, _, files in os.walk(directory):
         for file in files:
             file_names.append(file)
     return file_names
 
 
-def export_file_names_to_json(file_names: List[str], output_file: str) -> None:
+def export_file_names_to_json(file_names: list[str], output_file: str) -> None:
     """
     Export a list of filenames to a JSON file.
     Args:

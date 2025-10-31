@@ -4,13 +4,13 @@ import pickle
 
 import joblib
 import torch
-from ml.gnn import GNN
 from sklearn.preprocessing import OneHotEncoder
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import add_self_loops
 
+from ml.gnn import GNN
 
 
 class GraphDatasetPredictor(Dataset):
@@ -104,7 +104,7 @@ class GraphDatasetPredictor(Dataset):
             if self.tactics_labels_path is None:
                 raise ValueError("Either label to id  model or tactics_label path is needed.")
             with open(
-                self.tactics_labels_path, "r"
+                self.tactics_labels_path
             ) as f:
                 tactics = json.load(f)
             strategies = [item["id"] for item in tactics]
@@ -251,7 +251,7 @@ class Predictor:
         preds = []
         print("Predicting...")
         with torch.no_grad():
-            for i, batch in enumerate(self.loader):
+            for _i, batch in enumerate(self.loader):
                 batch = batch.to(self.device)
                 out = self.model(batch)
                 pred = out.argmax(dim=1)

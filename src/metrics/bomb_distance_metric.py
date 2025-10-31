@@ -1,15 +1,15 @@
 import logging
 import os
+from typing import override
 
 from awpy.analytics.nav import area_distance, find_closest_area
-from awpy.data import NAV, AREA_DIST_MATRIX
+from awpy.data import AREA_DIST_MATRIX, NAV
 from awpy.types import BombInfo
 from awpy.visualization.plot import plot_map, position_transform
 from matplotlib import patches
-from typing_extensions import override
 
-from metrics.base_metric import BaseMetric
 from datamodel.data_manager import DataManager
+from metrics.base_metric import BaseMetric
 
 LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
 if LOGGING_LEVEL == "INFO":
@@ -40,7 +40,7 @@ class BombDistanceMetric(BaseMetric):
     closest_bombsite_dist: float = float("Inf")
     closest_bombsite_areaid: int = -1
     bombinfo: BombInfo = dm.get_bomb_info(round_idx, frame_idx)
-    bomb_coords = [bombinfo[key] for key in bombinfo.keys()]
+    bomb_coords = [bombinfo[key] for key in bombinfo]
     area_bomb = find_closest_area(map_name, point=bomb_coords, flat=False)
     geodesic_path = None
 
@@ -105,8 +105,8 @@ class BombDistanceMetric(BaseMetric):
 
 if __name__ == "__main__":
   logger.setLevel(logging.INFO)
-  from pathlib import Path
   import os
+  from pathlib import Path
   # demo_path = os.path.join(os.getcwd(), 'demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json')
   # demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   demo_path = Path(__file__).parent / '../../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'

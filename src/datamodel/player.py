@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+
 from awpy.types import PlayerInfo
+
 
 @dataclass
 class Player:

@@ -1,4 +1,4 @@
-from typing import Counter
+from collections import Counter
 
 import matplotlib
 from awpy.visualization.plot import plot_map, position_transform
@@ -9,6 +9,7 @@ from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.quiver import Quiver
 from matplotlib.text import Text
+
 from datamodel.data_manager import DataManager
 from datamodel.position_tracker import PositionTracker
 from datamodel.routine import DEFAULT_ROUTINE_LENGTH, Routine
@@ -127,11 +128,11 @@ class VisualizationManager:
         # Adding 0.5 to the tile coordinates to counteract a phenomena in which tiles are drawn with a small offset towards the top left corner of the map
         transformed_x = [
             (tile[0] + 0.5) * self._position_tracker.tile_length
-            for tile in self._position_tracker.tile_activity_counter.keys()
+            for tile in self._position_tracker.tile_activity_counter
         ]
         transformed_y = [
             (tile[1] + 0.5) * self._position_tracker.tile_length
-            for tile in self._position_tracker.tile_activity_counter.keys()
+            for tile in self._position_tracker.tile_activity_counter
         ]
 
         # Make the point color go from black to red based on the number of times the tile was visited
@@ -218,16 +219,16 @@ class VisualizationManager:
         activity_surrounding_alive_player_tiles: Counter[tuple[int, int]] = Counter()
         for tile in alive_player_tiles:
             for routine in self._routine_tracker.tile_routine_counter[tile]:
-                for tile in zip(routine.tilized_x, routine.tilized_y):
+                for tile in zip(routine.tilized_x, routine.tilized_y, strict=False):
                     activity_surrounding_alive_player_tiles[tile] += 1
 
         transformed_x = [
             (tile[0] + 0.5) * self._routine_tracker.tile_length
-            for tile in activity_surrounding_alive_player_tiles.keys()
+            for tile in activity_surrounding_alive_player_tiles
         ]
         transformed_y = [
             (tile[1] + 0.5) * self._routine_tracker.tile_length
-            for tile in activity_surrounding_alive_player_tiles.keys()
+            for tile in activity_surrounding_alive_player_tiles
         ]
 
         most_common_routine_count = max(
@@ -302,11 +303,11 @@ class VisualizationManager:
         for routine, count in routines_from_alive_player_tiles.items():
             transformed_x = [
                 (tile[0] + 0.5) * self._routine_tracker.tile_length
-                for tile in zip(routine.tilized_x, routine.tilized_y)
+                for tile in zip(routine.tilized_x, routine.tilized_y, strict=False)
             ]
             transformed_y = [
                 (tile[1] + 0.5) * self._routine_tracker.tile_length
-                for tile in zip(routine.tilized_x, routine.tilized_y)
+                for tile in zip(routine.tilized_x, routine.tilized_y, strict=False)
             ]
             scaled_color_value = count / most_common_routine_count
             color = colormap(scaled_color_value)

@@ -1,8 +1,8 @@
 from awpy.analytics.nav import generate_area_distance_matrix
 from awpy.data import NAV
 from awpy.visualization.plot import plot_map, position_transform
-from matplotlib import pyplot as plt, patches
-
+from matplotlib import patches
+from matplotlib import pyplot as plt
 
 
 def _util_generate_area_distance_matrix(map_name: str) -> None:

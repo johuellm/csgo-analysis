@@ -1,8 +1,9 @@
 from collections import Counter
 
+from awpy.visualization.plot import position_transform
+
 from datamodel.data_manager import DataManager
 
-from awpy.visualization.plot import position_transform
 
 class PositionTracker:
     """A class for tracking the cumulative amount of times players enter each tile on the map, with a configurable tile size."""

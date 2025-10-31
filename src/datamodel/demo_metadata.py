@@ -4,6 +4,7 @@ from pathlib import Path
 from datamodel.data_manager import DataManager
 from datamodel.side_type import SideType
 
+
 @dataclass(frozen=True)
 class TeamPerformanceRecord:
     """Some basic information about how a team from a demo performed in the match."""

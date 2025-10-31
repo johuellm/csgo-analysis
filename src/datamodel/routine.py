@@ -26,7 +26,7 @@ class Routine:
             self._x = []
             self._y = []
         else:
-            self._x, self._y = zip(*positions)
+            self._x, self._y = zip(*positions, strict=False)
             
     @property
     def x(self) -> list[float]:
@@ -53,7 +53,7 @@ class Routine:
         if isinstance(index, int):
             return self._x[index], self._y[index]
         elif isinstance(index, slice):
-            return list(zip(self._x[index.start:index.stop:index.step], self._y[index.start:index.stop:index.step]))
+            return list(zip(self._x[index.start:index.stop:index.step], self._y[index.start:index.stop:index.step], strict=False))
         else:
             raise TypeError("Index must be an integer or slice.")
     

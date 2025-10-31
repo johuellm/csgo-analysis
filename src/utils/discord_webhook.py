@@ -24,11 +24,10 @@ WEBHOOK_URL = (
     else os.environ.get("LIVE_WEBHOOK_URL")
 )
 
-if not args.no_dc_webhooks:
-    if not WEBHOOK_URL:
-        raise ValueError(
-            "❌ WEBHOOK_URL is not set. Please check your .env file and environment variables."
-        )
+if not args.no_dc_webhooks and not WEBHOOK_URL:
+    raise ValueError(
+        "❌ WEBHOOK_URL is not set. Please check your .env file and environment variables."
+    )
 
 
 async def send_progress_embed(

@@ -1,10 +1,16 @@
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import overload
-from datamodel.data_manager import DataManager, get_map_name_from_demo_file_without_parsing
+
+from awpy.visualization.plot import position_transform
+
+from datamodel.data_manager import (
+    DataManager,
+    get_map_name_from_demo_file_without_parsing,
+)
 from datamodel.demo_metadata import DemoMetadata
 from datamodel.routine import DEFAULT_ROUTINE_LENGTH, FrameCount, Routine
-from awpy.visualization.plot import position_transform
+
 
 class TilizedRoutine(Routine):
     """An extension of the Routine class that includes the tilized x and y values for the routine - that is, the x and y values transformed into tile coordinates."""
@@ -13,7 +19,7 @@ class TilizedRoutine(Routine):
     _tilized_y: list[int] # The y values of the routine transformed into tile coordinates.
 
     def __init__(self, routine: Routine, tile_length: int):
-        super().__init__(routine.player_name, routine.team, routine.map_name, list(zip(routine.x, routine.y)))
+        super().__init__(routine.player_name, routine.team, routine.map_name, list(zip(routine.x, routine.y, strict=False)))
         self._tile_length = tile_length
         # Transforming coordinates now as bucketing them into tiles and then transforming tile coordinates sounds like it would be less accurate - not sure if this feeling is true, though.
         self._tilized_x = [int(position_transform(routine.map_name, x, 'x') / tile_length) for x in routine.x]
@@ -49,7 +55,7 @@ class TilizedRoutine(Routine):
         if isinstance(index, int):
             return self._tilized_x[index], self._tilized_y[index]
         elif isinstance(index, slice):
-            return list(zip(self._tilized_x[index.start:index.stop:index.step], self._tilized_y[index.start:index.stop:index.step]))
+            return list(zip(self._tilized_x[index.start:index.stop:index.step], self._tilized_y[index.start:index.stop:index.step], strict=False))
         else:
             raise TypeError("Index must be an integer or slice.")
     

@@ -2,11 +2,13 @@ import json
 import re
 import time
 from collections import defaultdict
+from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Generator
 
 from awpy.types import BombInfo, Game, GameFrame, GameRound, GrenadeAction, PlayerInfo
+from pydantic import TypeAdapter, ValidationError
+
 from datamodel.player import Player
 from datamodel.round_events import RoundActions
 from datamodel.round_stats import RoundStats
@@ -15,7 +17,6 @@ from datamodel.side_type import SideType
 from datamodel.team_names import TeamNames
 from datamodel.team_routines import BothTeamsRoutines, TeamRoutines
 from datamodel.team_scores import TeamScore
-from pydantic import TypeAdapter, ValidationError
 
 # Path to a demo file for testing
 EXAMPLE_DEMO_PATH = (
@@ -80,7 +81,7 @@ def _load_game_data(file_path: Path, do_validate: bool = True, logger=None) -> G
 
         return game_data
 
-    with open(file_path, "r") as file:
+    with open(file_path) as file:
         try:
             data = json.load(file)
             if do_validate:
@@ -241,7 +242,7 @@ class DataManager:
         Returns:
 
         """
-        if self.mappingT == None or self.mappingCT == None:
+        if self.mappingT is None or self.mappingCT is None:
             self.create_player_mapping(frame_data)
 
         mapping = self.mappingT if team == "t" else self.mappingCT
@@ -249,14 +250,14 @@ class DataManager:
 
     def create_player_mapping(self, frame_data, force_mapping=False):
         # Do not recreate if already exists, as it would change order again and break mapping.
-        if self.mappingT == None or force_mapping:
+        if self.mappingT is None or force_mapping:
             self.mappingT = dict(
-                zip([player["name"] for player in frame_data["t"]["players"]], range(5))
+                zip([player["name"] for player in frame_data["t"]["players"]], range(5), strict=False)
             )
-        if self.mappingCT == None or force_mapping:
+        if self.mappingCT is None or force_mapping:
             self.mappingCT = dict(
                 zip(
-                    [player["name"] for player in frame_data["ct"]["players"]], range(5)
+                    [player["name"] for player in frame_data["ct"]["players"]], range(5), strict=False
                 )
             )
 
@@ -483,7 +484,7 @@ def get_map_name_from_demo_file_without_parsing(file_path: Path) -> str | None:
     # We can find the map name by looking for this pattern
     pattern = re.compile(r'"mapName": "(\w+)"')
 
-    with open(file_path, "r") as file:
+    with open(file_path) as file:
         first_100_chars = file.read(100)
         match = pattern.search(first_100_chars)
         if match:

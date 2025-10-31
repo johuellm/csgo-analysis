@@ -16,3 +16,9 @@ extend-select = [
     # isort
     "I",
 ]
+ignore = [
+    # ignore lines too long
+    "E501",
+    # ignore format string
+    "UP031"
+]

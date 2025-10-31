@@ -48,7 +48,7 @@ class BaseMetric(ABC):
       raise ValueError("Map not found.")
 
     metric_values = []
-    for frame_idx, frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
+    for frame_idx, _frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
       try:
         metric = self.process_metric_frame(dm, round_idx, frame_idx)
         metric_values.append(metric)

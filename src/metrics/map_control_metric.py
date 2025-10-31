@@ -2,16 +2,15 @@ import logging
 from collections import defaultdict, deque
 
 import numpy as np
-from awpy.analytics.map_control import _approximate_neighbors
-from awpy.analytics.map_control import extract_teams_metadata
-from awpy.analytics.nav import find_closest_area, calculate_tile_area
+from awpy.analytics.map_control import _approximate_neighbors, extract_teams_metadata
+from awpy.analytics.nav import calculate_tile_area, find_closest_area
 from awpy.data import NAV, NAV_GRAPHS
 from awpy.types import BFSTileData, FrameMapControlValues
-from awpy.visualization.plot import plot_map, _plot_map_control_from_dict
+from awpy.visualization.plot import _plot_map_control_from_dict, plot_map
 from matplotlib import pyplot as plt
 
-from metrics.base_metric import BaseMetric
 from datamodel.data_manager import DataManager
+from metrics.base_metric import BaseMetric
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +159,7 @@ class MapControlMetric(BaseMetric):
       raise ValueError("Map not found.")
 
     metric_values: list[float] = []
-    for frame_idx, frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
+    for frame_idx, _frame in enumerate(dm.get_game_round(round_idx)["frames"] or []):
       try:
         metric = self.process_metric_frame(dm, round_idx, frame_idx, False, area_threshold, steps, occupied_only, norm, absolute)
         metric_values.append(metric)
@@ -231,7 +230,7 @@ class MapControlMetric(BaseMetric):
       np_tile_areas = np.array(tile_areas)
 
       ## TODO: division through zero error for some tiles
-      sum_tile_areas = sum(np_tile_areas)
+      sum(np_tile_areas)
 
       # Normalize from -1 to 1 for ct possession weighted by tile area (ONLY occupied tiles)
       if norm == 0:
@@ -242,13 +241,13 @@ class MapControlMetric(BaseMetric):
       # Normalize from 0 to 1 for ct possession, weighted by tile area (ONLY occupied tiles)
       elif norm == 1:
         return (
-            (sum(np_current_map_control_value * np_tile_areas) / sum(np_tile_areas))
+            sum(np_current_map_control_value * np_tile_areas) / sum(np_tile_areas)
         )
 
       # No normalization, weighted by tile area (ONLY occupied tiles)
       elif norm == 2:
         return (
-            (sum(np_current_map_control_value * np_tile_areas))
+            sum(np_current_map_control_value * np_tile_areas)
         )
 
       else:

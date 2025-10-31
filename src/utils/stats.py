@@ -26,7 +26,7 @@ def get_average_frames_per_round():
         if file_name.endswith(".json"):
             try:
                 file_path = os.path.join(dataset_dir, file_name)
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     data = json.load(f)
                     total_rounds += len(data.get("gameRounds", []))
                     print(
@@ -60,7 +60,7 @@ def get_total_rounds():
         if file_name.endswith(".json"):
             try:
                 file_path = os.path.join(dataset_dir, file_name)
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     data = json.load(f)
                     total_rounds += len(data.get("gameRounds", []))
             except json.decoder.JSONDecodeError:
@@ -98,7 +98,7 @@ def get_labeled_frames_per_round(path):
     """
     total_frames = 0
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
             no_frames_labeled = len(list(data.keys()))
             total_frames += no_frames_labeled
@@ -125,7 +125,7 @@ def get_total_frames_per_game(path):
     """
     total_frames = 0
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
             for round in data.get("gameRounds", []):
                 frames_in_round = len(round.get("frames", []))
@@ -147,7 +147,7 @@ def get_unlabeled_frames_per_game(path):
     filename = os.path.basename(path)
 
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
             for round in data.get("gameRounds", []):
                 frames_in_round = len(round.get("frames", []))
@@ -238,7 +238,7 @@ def get_all_unique_tactic_labels():
             if file_name.endswith(".json"):
                 path = os.path.join(subfolder, file_name)
                 try:
-                    with open(path, "r") as f:
+                    with open(path) as f:
                         data = json.load(f)
                         tactic_labels.update(data.values())
                 except json.decoder.JSONDecodeError:
@@ -268,7 +268,7 @@ def get_most_common_tactic_labels():
             if file_name.endswith(".json"):
                 path = os.path.join(subfolder, file_name)
                 try:
-                    with open(path, "r") as f:
+                    with open(path) as f:
                         data = json.load(f)
                         for label in data.values():
                             if label in label_counts:
@@ -286,7 +286,7 @@ def create_bar_chart_labels_frequency():
     """
 
     label_counts = get_most_common_tactic_labels()
-    labels, counts = zip(*label_counts)
+    labels, counts = zip(*label_counts, strict=False)
 
     plt.figure(figsize=(10, 6))
     plt.bar(labels, counts)

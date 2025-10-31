@@ -4,13 +4,13 @@ import os
 from pathlib import Path
 from typing import Any
 
+from datamodel.data_manager import DataManager
 from metrics.base_metric import BaseMetric
 from metrics.bomb_distance_metric import BombDistanceMetric
 from metrics.distance_metric import DistanceMetric
 from metrics.map_control_metric import MapControlMetric
 from metrics.teamhp_metric import TeamHpMetric
 from metrics.velocity_deviation_metric import VelocityDeviationMetric
-from datamodel.data_manager import DataManager
 
 LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
 if LOGGING_LEVEL == "INFO":
@@ -67,7 +67,7 @@ def process_round(dm: DataManager, round_idx: int, metrics: list[BaseMetric]) ->
     data_framelevel = [frame[key] for key in KEYS_FRAME_LEVEL]
 
     # include estimated seconds from bomb data for each frame
-    if bomb_data["bombTick"] != None and frame["tick"] >= bomb_data["bombTick"]:
+    if bomb_data["bombTick"] is not None and frame["tick"] >= bomb_data["bombTick"]:
       data_framelevel.append(frame["seconds"] + bomb_data["bombSeconds"])
     else:
       data_framelevel.append(frame["seconds"])
@@ -91,7 +91,7 @@ def process_round(dm: DataManager, round_idx: int, metrics: list[BaseMetric]) ->
     data_teamlevel_t = [team[key] for key in KEYS_TEAM_LEVEL]
     data_playerlevel_t = []
     # iterate through all players, but keep them in same order every iteration
-    for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
+    for _player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
       data_playerlevel_t.extend([player[key] for key in KEYS_PLAYER_LEVEL])
 
     # all variables on the team and player level for the CT side
@@ -99,7 +99,7 @@ def process_round(dm: DataManager, round_idx: int, metrics: list[BaseMetric]) ->
     data_teamlevel_ct = [team[key] for key in KEYS_TEAM_LEVEL]
     data_playerlevel_ct = []
     # iterate through all players, but keep them in same order every iteration
-    for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
+    for _player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
       data_playerlevel_ct.extend([player[key] for key in KEYS_PLAYER_LEVEL])
 
     row = (data_roundlevel + data_bomblevel + data_framelevel + data_metriclevel
@@ -157,12 +157,12 @@ def generate_csv_header():
 
   keys = []
   for key in KEYS_TEAM_LEVEL:
-    keys.append("t_%s" % key)
+    keys.append(f"t_{key}")
   for player_idx in range(1,6):
     for key in KEYS_PLAYER_LEVEL:
       keys.append("t%d_%s" % (player_idx, key))
   for key in KEYS_TEAM_LEVEL:
-    keys.append("ct_%s" % key)
+    keys.append(f"ct_{key}")
   for player_idx in range(1,6):
     for key in KEYS_PLAYER_LEVEL:
       keys.append("ct%d_%s" % (player_idx, key))
@@ -172,7 +172,7 @@ def generate_csv_header():
 def main():
   dm = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
   output_filename = "testdemo.csv"
-  logger.info("Processing match id: %s with %d rounds to file %s." % (dm.get_match_id(), dm.get_round_count(), output_filename))
+  logger.info(f"Processing match id: {dm.get_match_id()} with {dm.get_round_count()} rounds to file {output_filename}.")
 
   with open(output_filename, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
@@ -180,7 +180,7 @@ def main():
 
     rows_total = 0
     for round_idx in range(dm.get_round_count()):
-      logger.info("Converting round %d" % round_idx)
+      logger.info(f"Converting round {round_idx}")
 
       # we need to swap mappings, because player sides switch here.
       # WARNING: This only works if teams player in MR15 setting.
@@ -195,7 +195,7 @@ def main():
       writer.writerows(rows)
       logger.info("%d rows written to file." % len(rows))
       rows_total+= len(rows)
-    logger.info("SUCCESSFULLY COMPLETED: %d written in total." % rows_total)
+    logger.info(f"SUCCESSFULLY COMPLETED: {rows_total} written in total.")
 
 
 def test_round_mapping():
@@ -210,11 +210,11 @@ def test_round_mapping():
     BombDistanceMetric(), DistanceMetric(cumulative=True)
   ])
   rows_total+= len(rows)
-  logger.info("SUCCESSFULLY COMPLETED: %d written in total." % rows_total)
+  logger.info(f"SUCCESSFULLY COMPLETED: {rows_total} written in total.")
 
 def test_player_mapping():
   dm = DataManager(EXAMPLE_DEMO_PATH, do_validate=False)
-  logger.info("Processing match id: %s with %d rounds to console." % (dm.get_match_id(), dm.get_round_count()))
+  logger.info(f"Processing match id: {dm.get_match_id()} with {dm.get_round_count()} rounds to console.")
 
   # iterate and process each frame
   rowsT = []
@@ -222,22 +222,22 @@ def test_player_mapping():
   ## error because teams switch sides...
   for round_idx in [14,15,16]:
     frames = dm._get_frames(round_idx)
-    logger.info("Processing round %d with %d frames." % (round_idx, len(frames)))
+    logger.info(f"Processing round {round_idx} with {len(frames)} frames.")
 
     if round_idx == 15:
       dm.swap_player_mapping()
 
-    for frame_idx, frame in enumerate(frames):
+    for _frame_idx, frame in enumerate(frames):
       # iterate through all T players, but keep them in same order every iteration
       team = frame["t"]
       data_playerlevel = []
-      for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
+      for _player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "t", frame))):
         data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
       rowsT.append(data_playerlevel)
 
       team = frame["ct"]
       data_playerlevel = []
-      for player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
+      for _player_idx, player in enumerate(sorted(team["players"], key=lambda p: dm.get_player_idx_mapped(p["name"], "ct", frame))):
         data_playerlevel.extend([player[key] for key in KEYS_PLAYER_LEVEL])
       rowsCT.append(data_playerlevel)
 

@@ -113,7 +113,7 @@ class GraphDataset(Dataset):
             self.label_to_id = label_to_id
         else:
             with open(
-                "research_project\\tactic_labels\\de_dust2_tactics.json", "r"
+                "research_project\\tactic_labels\\de_dust2_tactics.json"
             ) as f:
                 tactics = json.load(f)
             strategies = [item["id"] for item in tactics]

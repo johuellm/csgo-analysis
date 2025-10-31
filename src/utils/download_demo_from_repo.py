@@ -1,6 +1,5 @@
 import json
 import os
-from typing import List
 
 import requests
 from dotenv import load_dotenv
@@ -29,7 +28,7 @@ def download_file(url: str, output_path: str) -> None:
         f.write(response.content)
 
 
-def get_demo_files_from_list(demo_files_list_path: str, compressed: bool) -> List[str]:
+def get_demo_files_from_list(demo_files_list_path: str, compressed: bool) -> list[str]:
     """
     Get a list of demo files from a repository.
     Args:
@@ -39,7 +38,7 @@ def get_demo_files_from_list(demo_files_list_path: str, compressed: bool) -> Lis
         List[str]: A list of demo file names.
     """
     demo_files_list = []
-    with open(demo_files_list_path, "r") as f:
+    with open(demo_files_list_path) as f:
         demo_files_list = json.load(f)
 
     if not demo_files_list:

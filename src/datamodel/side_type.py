@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class SideType(Enum):
     CT = "ct"
     T = "t"

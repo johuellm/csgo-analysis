@@ -12,12 +12,12 @@ from tkinter import filedialog, messagebox, simpledialog
 from awpy.visualization.plot import plot_map
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 from datamodel.data_manager import DataManager
 from datamodel.position_tracker import PositionTracker
 from datamodel.routine_tracker import RoutineTracker
 from datamodel.side_type import SideType
 from datamodel.visualization_manager import VisualizationManager
-from ml.predictor import Predictor
 from gui.tk_components.imports import CanvasTooltip
 from gui.tk_components.subcomponents import (
     FrameWithScrollableInnerFrame,
@@ -25,6 +25,7 @@ from gui.tk_components.subcomponents import (
     PlayerInfoFrame,
     RoutineMenuButtonNames,
 )
+from ml.predictor import Predictor
 
 # TODO: Re-create more Noesis functionality.
 # DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
@@ -1188,7 +1189,7 @@ class TimelineBar(ttk.Frame):
         if not output_file.exists():
             return
 
-        with open(output_file, "r") as f:
+        with open(output_file) as f:
             round_tactic_data = json.load(f)
 
         if not round_tactic_data:
@@ -1492,7 +1493,7 @@ class TacticsSidebar(ttk.Frame):
             print(f"Tactic labels file not found at: {input_path}")
             return
 
-        with open(input_path, "r") as f:
+        with open(input_path) as f:
             self.tactic_labels = json.load(f)
 
         for tactic in self.tactic_labels:
@@ -1533,7 +1534,7 @@ class TacticsSidebar(ttk.Frame):
 
         # Load existing data if the file exists
         if output_file.exists():
-            with open(output_file, "r") as f:
+            with open(output_file) as f:
                 round_tactic_data = json.load(f)
         else:
             round_tactic_data = {}

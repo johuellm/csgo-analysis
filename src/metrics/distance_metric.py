@@ -1,11 +1,11 @@
 import logging
 import os
+from typing import override
 
 from awpy.data import NAV
-from typing_extensions import override
 
-from metrics.base_metric import BaseMetric
 from datamodel.data_manager import DataManager
+from metrics.base_metric import BaseMetric
 
 LOGGING_LEVEL = os.environ.get("LOGGING_INFO")
 if LOGGING_LEVEL == "INFO":
@@ -51,7 +51,7 @@ class DistanceMetric(BaseMetric):
       raise ValueError(f"Frame index {frame_idx} out of bounds (max index is {len(frames) - 1})")
 
     # first frame is always 0.0 by definition (there cannot be a preceding frame to get a distance delta)
-    if frame_idx < 1 or self.previous_positions == None:
+    if frame_idx < 1 or self.previous_positions is None:
       # save previous positions for next frame and return 0.0.
       self.previous_positions = {
         player["name"]: (player["x"], player["y"], player["z"])
@@ -59,7 +59,7 @@ class DistanceMetric(BaseMetric):
       return 0.0
 
     current_frame = frames[frame_idx]
-    previous_frame = frames[frame_idx-1]
+    frames[frame_idx-1]
 
     # players are indexed at different positions each frame, so we need to remember them by name...
     # tuples are (x,y,z)
@@ -115,8 +115,8 @@ class DistanceMetric(BaseMetric):
 
 if __name__ == "__main__":
   logger.setLevel(logging.INFO)
-  from pathlib import Path
   import os
+  from pathlib import Path
   # demo_path = os.path.join(os.getcwd(), 'demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json')
   # demo_path = Path(__file__).parent / '../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'
   demo_path = Path(__file__).parent / '../../demos/esta/lan/de_dust2/00e7fec9-cee0-430f-80f4-6b50443ceacd.json'

@@ -1,7 +1,6 @@
 import tkinter as tk
 
 from dotenv import load_dotenv
-
 from tk_components.components import MainApplication
 
 # Time to design a GUI? # TODO.

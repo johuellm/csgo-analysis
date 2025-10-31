@@ -1,10 +1,12 @@
 from typing import Literal
+
+from awpy.visualization.plot import position_transform
 from models.data_manager import EXAMPLE_DEMO_PATH, DataManager
 from models.position_tracker import PositionTracker
 from models.routine import DEFAULT_ROUTINE_LENGTH
 from models.routine_tracker import RoutineTracker, TilizedRoutine
 from models.visualization_manager import VisualizationManager
-from awpy.visualization.plot import position_transform
+
 
 def test_routine_drawing():
     """Test drawing a routine from the example demo file."""
