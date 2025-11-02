@@ -3,6 +3,10 @@
 Analyze Counter-Strike: Global Offensive demos,
 annotate tactics, and run graph neural network predictions.
 
+`stats.py` and `ui\cli.py` are rather outdated.
+The most recent version is `gui_app.py`.
+
+
 
 
 ## Installation
@@ -39,6 +43,6 @@ Run the GUI.
 ```bash
 # in csgo-analysis root folder
 cp ".env.example" ".env"
-PYTHONPATH=src/ venv/bin/python src/gui/gui_app.py
+PYTHONPATH=src/ venv/bin/python src/gui_app.py
 ```
 

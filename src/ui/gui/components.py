@@ -18,8 +18,8 @@ from datamodel.position_tracker import PositionTracker
 from datamodel.routine_tracker import RoutineTracker
 from datamodel.side_type import SideType
 from datamodel.visualization_manager import VisualizationManager
-from gui.tk_components.imports import CanvasTooltip
-from gui.tk_components.subcomponents import (
+from ui.gui.imports import CanvasTooltip
+from ui.gui.subcomponents import (
     FrameWithScrollableInnerFrame,
     HeatmapMenuButtonNames,
     PlayerInfoFrame,

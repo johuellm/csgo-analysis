@@ -1,3 +1,10 @@
+"""
+This script offers different metrics compared to `create_graphs.py`.
+Some of its round- and frame-conversion logic might have to be updated
+to reflect most up-to-date features in `create_graphs.py`.
+For example, the distance metrics here are rather simple.
+Tactics are missing.
+"""
 import csv
 import logging
 import os

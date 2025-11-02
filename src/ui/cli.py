@@ -1,3 +1,9 @@
+"""
+This is a deprecated conversion of awpy data and commandline interface.
+It needs to be updated to reflect the features in
+./src/preprocessing/create_graphs.py
+"""
+
 from typing import Literal
 
 from awpy.visualization.plot import position_transform
