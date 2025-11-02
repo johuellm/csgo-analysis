@@ -18,6 +18,7 @@ from datamodel.position_tracker import PositionTracker
 from datamodel.routine_tracker import RoutineTracker
 from datamodel.side_type import SideType
 from datamodel.visualization_manager import VisualizationManager
+from ml.predictor import Predictor
 from ui.gui.imports import CanvasTooltip
 from ui.gui.subcomponents import (
     FrameWithScrollableInnerFrame,
@@ -25,7 +26,6 @@ from ui.gui.subcomponents import (
     PlayerInfoFrame,
     RoutineMenuButtonNames,
 )
-from ml.predictor import Predictor
 
 # TODO: Re-create more Noesis functionality.
 # DONE 1. A bar on the bottom that has a list of round numbers. Selecting a round number shows the start of that round on the plot.
