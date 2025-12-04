@@ -78,6 +78,7 @@ KEYS_PER_NODE = KEYS_PLAYER_LEVEL + (
 # DGL library requires int as node ids
 # instead of randomly converting later, ensure that it is always 6,7,8, because
 # players are 1-5
+# TODO: players are actually 0-4, make consistent!
 BOMB_NODE_INDEX = 6
 BOMBSITE_A_NODE_INDEX = 7
 BOMBSITE_B_NODE_INDEX = 8

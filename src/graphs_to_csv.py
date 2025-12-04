@@ -8,34 +8,96 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+KEYS_ROUND_LEVEL = (
+  "tick",
+  "seconds",
+  "bombPlanted",
+  "tFreezeTimeEndEqVal",
+  "tRoundSpendMoney",
+  "strategy_used"
+)
+KEYS_PLAYER_LEVEL = (
+  "x",
+  "y",
+  "z",
+  "hp",
+  "armor",
+  "activeWeapon",
+  "totalUtility",
+  "isAlive",
+  "isDefusing",
+  "isPlanting",
+  "isReloading",
+  "isInBombZone",
+  "isInBuyZone",
+  "equipmentValue",
+  "hasHelmet",
+  "hasDefuse",
+  "hasBomb",
+  "areaId"
+)
+
+KEYS_EDGE_LEVEL = (
+  "dist"
+  # mean/min/max(dist) to bomb
+  # mean/min/maxmin(dist) to siteA
+  # mean/min/max(dist) to site B
+  # sum(dist) all players (and bomb?)
+)
+
+# generate CSV headers
+CSV_HEADERS = ("demoName", "roundIdx") + \
+              KEYS_ROUND_LEVEL + \
+              tuple([f"t{i}_{item}" for i in range(5) for item in KEYS_PLAYER_LEVEL]) + \
+              ("dist01", "dist02", "dist03", "dist04", "dist06", "dist07", "dist08",
+              "dist10", "dist12", "dist13", "dist14", "dist16", "dist17", "dist18",
+              "dist20", "dist21", "dist23", "dist24", "dist26", "dist27", "dist28",
+              "dist30", "dist31", "dist32", "dist34", "dist36", "dist37", "dist38",
+              "dist40", "dist41", "dist42", "dist43", "dist46", "dist47", "dist48",
+              "dist60", "dist61", "dist62", "dist63", "dist64", "dist67", "dist68")
+
+# TODO
+# create sequences and dependent variables:
+#   - RoundWin
+#   - change in hp/damage in next 5 seconds
+#   - Kill in next 5 seconds
+#   - distance from bomb to closest bombsite
+#   - minimum distance from player to bombsite
+# compare with with soccer possession value. Kill/Plant in next 5 second? Bomb distance to plant
+
 
 def parse_graph_data(graph_data):
-  return list(graph_data.values())
+  return [graph_data[key] for key in KEYS_ROUND_LEVEL]
 
 
 def parse_node_data(node_data):
   # bug in create_graphs.py: players are ids 0,1,2,3,4 but bomb and bombsites are 6,7,8
-  lines = []
-  for k, v in node_data.items():
-    lines.extend([k] + list(v.values()))
-  return lines
+  # players are index 0-4, ignore bomb and bombsites, they have no node attributes
+  # iterate via range because order of index must remain constant
+  return [node_data[i][key] for i in range(5) for key in KEYS_PLAYER_LEVEL]
 
 
 def parse_edges_data(edges_data):
-  lines = []
-  for edge in edges_data:
-    lines.extend([edge[0], edge[1], edge[2]['dist']])
-  return lines
+  # make sure we always have same order
+  edges_data.sort(key=lambda x: (x[0], x))
+  return [edge[2]['dist'] for edge in edges_data]
 
 
 def main():
   graphs_folder = Path(os.environ.get("GRAPHS_OUTPUT_DIR"))
+  output_name = "output.csv"
   try:
-    with open("output.csv", "w", newline="", encoding="utf-8") as f_out:
+    with open(output_name, "w", newline="", encoding="utf-8") as f_out:
+      print(f"Writing output to {output_name} in {graphs_folder}")
       writer = csv.writer(f_out)
-      for pkl_file in graphs_folder.rglob("*.pkl"):
+      writer.writerow(CSV_HEADERS)
+      pkl_files = list(graphs_folder.rglob("*.pkl")) # for len
+      len_pkl_files = len(pkl_files)
+      for idx, pkl_file in enumerate(pkl_files):
+        file_name = pkl_file.name
         demo_name = pkl_file.parent.name
         round_idx = pkl_file.stem.rpartition("-")[2]
+        print(f"Loading demo round file: {file_name} ({idx+1}/{len_pkl_files})")
         with open(pkl_file, "rb") as f:
           frames = pickle.load(f)
           for frame in frames:
@@ -44,9 +106,29 @@ def main():
               parse_graph_data(frame["graph_data"]) +
               parse_node_data(frame["nodes_data"]) +
               parse_edges_data(frame["edges_data"]))
+          print(f"Written {len(frames)} to file.")
       return
   except Exception as e:
     print(f"Failed: {e}")
+
+
+def main_onlyprint():
+  graphs_folder = Path(os.environ.get("GRAPHS_OUTPUT_DIR"))
+  output_name = "output.csv"
+  print(f"Writing output to {output_name} in {graphs_folder}")
+  pkl_files = list(graphs_folder.rglob("*.pkl")) # for len
+  len_pkl_files = len(pkl_files)
+  for idx, pkl_file in enumerate(pkl_files):
+    file_name = pkl_file.name
+    demo_name = pkl_file.parent.name
+    round_idx = pkl_file.stem.rpartition("-")[2]
+    print(f"Loading demo round file: {file_name} ({idx+1}/{len_pkl_files})")
+    with open(pkl_file, "rb") as f:
+      frames = pickle.load(f)
+      for frame in frames:
+        pass #todo add print
+      print(f"Written {len(frames)} to file.")
+  return
 
 
 if __name__ == "__main__":
