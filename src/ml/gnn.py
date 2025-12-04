@@ -17,6 +17,7 @@ from torch_geometric.nn import GCNConv, global_add_pool
 from torch_geometric.utils import add_self_loops
 from torchmetrics import Accuracy, F1Score, Precision, Recall
 
+#TODO: Fields need to be updated since create_graphs.py was changed.
 
 class GraphDataset(Dataset):
     def __init__(

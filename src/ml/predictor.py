@@ -12,6 +12,7 @@ from torch_geometric.utils import add_self_loops
 
 from ml.gnn import GNN
 
+#TODO: Fields need to be updated since create_graphs.py was changed.
 
 class GraphDatasetPredictor(Dataset):
     def __init__(

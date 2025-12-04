@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import csv
 import functools
 import json
 import logging
@@ -18,6 +19,7 @@ from tqdm import tqdm
 
 import stats
 from datamodel.data_manager import DataManager
+from graphs_to_csv import parse_graph_data, parse_node_data, parse_edges_data
 from utils.discord_webhook import send_progress_embed
 from utils.download_demo_from_repo import get_demo_files_from_list
 from utils.logging_config import get_logger
@@ -29,18 +31,23 @@ for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 
 # Set root level to WARNING or higher (to suppress DEBUG logs)
-logging.basicConfig(level=logging.WARNING)
+# TODO: change to environment variable
+logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 logging.getLogger("discord").setLevel(logging.CRITICAL)
 logging.getLogger("discord.webhook.async_").setLevel(logging.CRITICAL)
 
 KEYS_ROUND_LEVEL = (
+    "roundNum",
+    "isWarmup",
+    "winningSide",
+    "losingTeam",
     "tFreezeTimeEndEqVal",
     "tRoundStartEqVal",
-    "tRoundSpendMoney",
-    "tBuyType",
-)
+    "tRoundSpendMoney")
+
 KEYS_FRAME_LEVEL = ("tick", "seconds", "bombPlanted")
+
 KEYS_PLAYER_LEVEL = (
     "x",
     "y",
@@ -185,7 +192,7 @@ def process_round(
 
         # all variables on the frame level are added to the graph level data.
         graph_data = {key: frame[key] for key in KEYS_FRAME_LEVEL} | round_data
-        graph_data["strategy_used"] = tactic
+        graph_data["tactic_used"] = tactic
 
         # include estimated seconds from bomb data for each frame
         if (
@@ -406,6 +413,7 @@ async def process_single_demo(
     send_dc_webhooks=False,
     rewrite_graphed_rounds=False,
     strict=False,
+    output_type="pickle"
 ):
     # logger
     uuid = Path(demo_path).stem
@@ -417,7 +425,12 @@ async def process_single_demo(
 
     dm = DataManager(Path(demo_path), do_validate=strict, logger=logger)
     output_folder = Path(__file__).parent / "../graphs/" / Path(demo_path).stem
-    output_filename_template = str(output_folder / "graph-rounds-%d.pkl")
+    if output_type == "pickle":
+        output_filename_template = str(output_folder / "graph-rounds-%d.pkl")
+    elif output_type == "csv":
+        output_filename_template = str(output_folder / "graph-rounds-%d.csv")
+    else:
+        raise ValueError(f"Output type {output_type} is not supported.")
     output_folder.mkdir(parents=True, exist_ok=True)
 
     logger.info(
@@ -498,8 +511,21 @@ async def process_single_demo(
             logger=logger,
             strict=strict,  # reuse flag for now
         )
-        with open(output_filename, "wb") as f:
-            pickle.dump(graphs, f)
+
+        if output_type == "pickle":
+            with open(output_filename, "wb") as f:
+                pickle.dump(graphs, f)
+        elif output_type == "csv":
+            with open(output_filename, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                for graph in graphs:
+                    writer.writerow(
+                        [dm.get_match_id(), round_idx] +
+                        parse_graph_data(graph["graph_data"]) +
+                        parse_node_data(graph["nodes_data"]) +
+                        parse_edges_data(graph["edges_data"]))
+        else:
+            raise ValueError(f"Output type {output_type} is not supported.")
 
         logger.info("%d graphs written to file." % len(graphs))
         graphs_total += len(graphs)
@@ -530,6 +556,7 @@ def process_single_demo_sync(
     send_dc_webhooks=False,
     rewrite_graphed_rounds=False,
     strictModeOn=False,
+    output_type="pickle",
 ):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -569,44 +596,45 @@ def get_env_variables():
     demo_filenames_path = os.environ.get("DUST2_DEMOS_FILENAMES_PATH")
     create_graphs_filenames = os.environ.get("CREATE_GRAPHS_FILENAMES_PATH")
     create_graphs_demo_dir = os.environ.get("CREATE_GRAPHS_DEMO_DIR")
+    output_type = os.environ.get("CREATE_GRAPHS_OUTPUT_TYPE")
 
     if not create_graphs_demo_dir:
         raise ValueError("Environment variable CREATE_GRAPHS_DEMO_DIR is not set.")
     if not os.path.exists(create_graphs_demo_dir):
-        raise ValueError(
-            f"Demo directory {create_graphs_demo_dir} does not exist. Please check the path."
-        )
+        raise ValueError(f"Demo directory {create_graphs_demo_dir} does not exist. Please check the path.")
+
     if not demo_filenames_path:
         raise ValueError("Environment variable DUST2_DEMOS_FILENAMES_PATH is not set.")
     if not os.path.exists(demo_filenames_path):
-        raise ValueError(
-            f"File list path {demo_filenames_path} does not exist. Please check the path."
-        )
+        raise ValueError(f"File list path {demo_filenames_path} does not exist. Please check the path.")
+
     if not create_graphs_filenames:
-        raise ValueError(
-            "Environment variable CREATE_GRAPHS_FILENAMES_PATH is not set."
-        )
+        raise ValueError("Environment variable CREATE_GRAPHS_FILENAMES_PATH is not set.")
     if not os.path.exists(create_graphs_filenames):
-        raise ValueError(
-            f"File list path {create_graphs_filenames} does not exist. Please check the path."
-        )
+        raise ValueError(f"File list path {create_graphs_filenames} does not exist. Please check the path.")
+
     if batch_size:
         print(f"Using {batch_size} processes for graph creation.")
     else:
-        print(
-            "Environment variable CREATE_GRAPHS_PROCESSES_COUNT is not set. Using default of 1 process."
-        )
+        print("Environment variable CREATE_GRAPHS_PROCESSES_COUNT is not set. Using default of 1 process.")
         batch_size = 1
+
+    if not output_type or not output_type in ("pickle", "csv"):
+        print("Environment variable CREATE_GRAPHS_CSV_OUTPUT is not set to valid value ('pickle' or 'csv'). " \
+              "Using default of 'pickle'.")
+        output_type = "pickle"
+
     return (
         batch_size,
         demo_filenames_path,
         create_graphs_filenames,
         create_graphs_demo_dir,
+        output_type
     )
 
 
 async def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=False):
-    batch_size, demo_filenames_path, create_graphs_filenames, create_graphs_demo_dir = (
+    batch_size, demo_filenames_path, create_graphs_filenames, create_graphs_demo_dir, output_type = (
         get_env_variables()
     )
 
@@ -654,6 +682,7 @@ async def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=Fals
                     send_dc_webhooks=send_dc_webhooks,
                     rewrite_graphed_rounds=rewrite_graphed_rounds,
                     strictModeOn=strict,
+                    output_type=output_type,
                 ),
             )
             for demo in demo_pathnames
@@ -665,15 +694,16 @@ async def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=Fals
 
 
 parser = argparse.ArgumentParser(description="Process CS:GO demo graphs.")
+# action is inverted, because absence of flag yes/no
 parser.add_argument(
     "-no-dc-webhooks",
-    action="store_true",
-    help="Disable Discord webhook progress updates (default: False)",
+    action="store_false",
+    help="Disable Discord webhook progress updates (default: True)",
 )
 parser.add_argument(
     "-rewrite-graphed-rounds",
     action="store_true",
-    help="Rewrite rounds even if graph files already exist (default: True)",
+    help="Rewrite rounds even if graph files already exist (default: False)",
 )
 
 parser.add_argument(
@@ -687,8 +717,7 @@ if __name__ == "__main__":
     print("Starting graph creation...")
     print(f"Arguments: {args}")
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(
+    asyncio.run(
         main(
             send_dc_webhooks=not args.no_dc_webhooks,
             rewrite_graphed_rounds=args.rewrite_graphed_rounds,

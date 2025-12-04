@@ -14,7 +14,7 @@ KEYS_ROUND_LEVEL = (
   "bombPlanted",
   "tFreezeTimeEndEqVal",
   "tRoundSpendMoney",
-  "strategy_used"
+  "strategy_used"   # WARNING, newer graph files have tactic_used
 )
 KEYS_PLAYER_LEVEL = (
   "x",
