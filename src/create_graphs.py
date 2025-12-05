@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 import stats
 from datamodel.data_manager import DataManager
-from graphs_to_csv import parse_graph_data, parse_node_data, parse_edges_data
+from graphs_to_csv import parse_graph_data, parse_node_data, parse_edges_data, CSV_HEADERS
 from utils.discord_webhook import send_progress_embed
 from utils.download_demo_from_repo import get_demo_files_from_list
 from utils.logging_config import get_logger
@@ -412,18 +412,20 @@ def process_single_demo(
     send_dc_webhooks=False,
     rewrite_graphed_rounds=False,
     strict=False,
+    tactic_labels_dir: str="data/tactic_labels",
+    create_graphs_output_dir: str="data/graphs",
     output_type="pickle"
 ):
     # logger
-    uuid = Path(demo_path).stem
+    demo_uuid = Path(demo_path).stem
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-    log_path = Path("research_project/graphs") / uuid / "logs" / f"{timestamp}.log"
+    log_path = Path(create_graphs_output_dir) / demo_uuid / "logs" / f"{timestamp}.log"
     logger = get_logger(
-        log_path, name=f"create_graphs_logger_{uuid}", level=logging.DEBUG
+        log_path, name=f"create_graphs_logger_{demo_uuid}", level=logging.DEBUG
     )
 
     dm = DataManager(Path(demo_path), do_validate=strict, logger=logger)
-    output_folder = Path(__file__).parent / "../graphs/" / Path(demo_path).stem
+    output_folder = Path(create_graphs_output_dir) / demo_uuid
     if output_type == "pickle":
         output_filename_template = str(output_folder / "graph-rounds-%d.pkl")
     elif output_type == "csv":
@@ -439,9 +441,7 @@ def process_single_demo(
 
     # tactic label directory for per-frame labeling
     tactic_dir = (
-        Path.cwd()
-        / "research_project"
-        / "tactic_labels"
+        Path(tactic_labels_dir)
         / dm.get_map_name()
         / dm.get_match_id()
     )
@@ -493,8 +493,8 @@ def process_single_demo(
             logger.info(
                 f"Skipping round {round_idx} with {len(dm._get_frames(round_idx))} frames: graph file already exists."
             )
+            estimated_frames = len(dm._get_frames(round_idx))
             if queue and key:
-                estimated_frames = len(dm._get_frames(round_idx))
                 queue.put((key, estimated_frames))
 
             graphs_total += estimated_frames
@@ -517,6 +517,7 @@ def process_single_demo(
         elif output_type == "csv":
             with open(output_filename, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
+                writer.writerow(CSV_HEADERS)
                 for graph in graphs:
                     writer.writerow(
                         [dm.get_match_id(), round_idx] +
@@ -573,6 +574,8 @@ def get_env_variables():
     create_graphs_filenames = os.environ.get("CREATE_GRAPHS_FILENAMES_PATH")
     create_graphs_demo_dir = os.environ.get("CREATE_GRAPHS_DEMO_DIR")
     output_type = os.environ.get("CREATE_GRAPHS_OUTPUT_TYPE")
+    create_graphs_output_dir = os.environ.get("GRAPHS_OUTPUT_DIR")
+    tactic_labels_dir = os.environ.get("LABELS_OUTPUT_DIR")
 
     if not create_graphs_demo_dir:
         raise ValueError("Environment variable CREATE_GRAPHS_DEMO_DIR is not set.")
@@ -589,6 +592,16 @@ def get_env_variables():
     if not os.path.exists(create_graphs_filenames):
         raise ValueError(f"File list path {create_graphs_filenames} does not exist. Please check the path.")
 
+    if not tactic_labels_dir:
+        raise ValueError("Environment variable LABELS_OUTPUT_DIR is not set.")
+    if not os.path.exists(tactic_labels_dir):
+        raise ValueError(f"Graph output path {tactic_labels_dir} does not exist. Please check the path.")
+
+    if not create_graphs_output_dir:
+        raise ValueError("Environment variable GRAPHS_OUTPUT_DIR is not set.")
+    if not os.path.exists(create_graphs_output_dir):
+        raise ValueError(f"Graph output path {create_graphs_output_dir} does not exist. Please check the path.")
+
     if batch_size:
         print(f"Using {batch_size} processes for graph creation.")
     else:
@@ -600,19 +613,20 @@ def get_env_variables():
               "Using default of 'pickle'.")
         output_type = "pickle"
 
-    return (
-        batch_size,
+    return (batch_size,
         demo_filenames_path,
         create_graphs_filenames,
         create_graphs_demo_dir,
-        output_type
-    )
+        tactic_labels_dir,
+        create_graphs_output_dir,
+        output_type)
 
 
 def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=False, sync=False):
-    batch_size, demo_filenames_path, create_graphs_filenames, create_graphs_demo_dir, output_type = (
-        get_env_variables()
-    )
+
+    batch_size, demo_filenames_path, create_graphs_filenames, \
+        create_graphs_demo_dir, tactic_labels_dir, create_graphs_output_dir, \
+        output_type = get_env_variables()
 
     demo_filenames = get_demo_files_from_list(demo_filenames_path, compressed=False)
 
@@ -650,6 +664,8 @@ def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=False, syn
                 send_dc_webhooks=send_dc_webhooks,
                 rewrite_graphed_rounds=rewrite_graphed_rounds,
                 strict=strict,
+                tactic_labels_dir=tactic_labels_dir,
+                create_graphs_output_dir=create_graphs_output_dir,
                 output_type=output_type
             )
     else:
@@ -674,6 +690,8 @@ def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=False, syn
                         send_dc_webhooks=send_dc_webhooks,
                         rewrite_graphed_rounds=rewrite_graphed_rounds,
                         strict=strict,
+                        tactic_labels_dir=tactic_labels_dir,
+                        create_graphs_output_dir=create_graphs_output_dir,
                         output_type=output_type,
                     )
                 )
@@ -704,9 +722,8 @@ if __name__ == "__main__":
         help="Rewrite rounds even if graph files already exist (default: False)")
     parser.add_argument("--strict", action="store_true",
                         help="Raise an error if a frame is invalid (default: False)")
-
     parser.add_argument("--sync", action="store_true",
-                        help="Raise an error if a frame is invalid (default: False)")
+                        help="Run in synchronous mode without concurrent processing. (default: False)")
     args = parser.parse_args()
 
     print("Starting graph creation...")
