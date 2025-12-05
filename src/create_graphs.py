@@ -1,5 +1,4 @@
 import argparse
-import asyncio
 import csv
 import functools
 import json
@@ -7,8 +6,8 @@ import logging
 import os
 import pickle
 import time
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import Manager, Process
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -406,7 +405,7 @@ def _distance_internal(map_name, area_a, area_b, logger=None):
     return current_bombsite_dist
 
 
-async def process_single_demo(
+def process_single_demo(
     demo_path,
     queue=None,
     key=None,
@@ -460,7 +459,7 @@ async def process_single_demo(
             start_time=start_time, processed_frames=processed_frames
         )
         if send_dc_webhooks:
-            await send_progress_embed(
+            send_progress_embed(
                 progress=progress,
                 roundsTotal=dm.get_round_count(),
                 currentRound=round_idx,
@@ -538,7 +537,7 @@ async def process_single_demo(
     logger.info(f"Processed {processed_frames} / {total_frames} frames.")
 
     if send_dc_webhooks:
-        await send_progress_embed(
+        send_progress_embed(
             progress=100,
             roundsTotal=dm.get_round_count(),
             currentRound=dm.get_round_count() - 1,
@@ -547,29 +546,6 @@ async def process_single_demo(
             sendSilent=False,
             logger=logger,
         )
-
-
-def process_single_demo_sync(
-    demo_path,
-    queue,
-    key,
-    send_dc_webhooks=False,
-    rewrite_graphed_rounds=False,
-    strictModeOn=False,
-    output_type="pickle",
-):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(
-        process_single_demo(
-            demo_path,
-            queue=queue,
-            key=key,
-            send_dc_webhooks=send_dc_webhooks,
-            rewrite_graphed_rounds=rewrite_graphed_rounds,
-            strict=strictModeOn,
-        )
-    )
 
 
 def progress_monitor(queue, total_map):
@@ -633,7 +609,7 @@ def get_env_variables():
     )
 
 
-async def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=False):
+def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=False, sync=False):
     batch_size, demo_filenames_path, create_graphs_filenames, create_graphs_demo_dir, output_type = (
         get_env_variables()
     )
@@ -664,63 +640,79 @@ async def main(send_dc_webhooks=False, rewrite_graphed_rounds=False, strict=Fals
         demo: len(DataManager(Path(demo), do_validate=strict).get_all_frames())
         for demo in demo_pathnames
     }
-    manager = Manager()
-    queue = manager.Queue()
-    monitor = Process(target=progress_monitor, args=(queue, total_map))
-    monitor.start()
 
-    loop = asyncio.get_event_loop()
-    with ProcessPoolExecutor(max_workers=batch_size) as executor:
-        tasks = [
-            loop.run_in_executor(
-                executor,
-                functools.partial(
-                    process_single_demo_sync,
-                    demo,
-                    queue,
-                    demo,
-                    send_dc_webhooks=send_dc_webhooks,
-                    rewrite_graphed_rounds=rewrite_graphed_rounds,
-                    strictModeOn=strict,
-                    output_type=output_type,
-                ),
+    if sync:
+        for demo in demo_pathnames:
+            process_single_demo(
+                demo,
+                None,
+                None,
+                send_dc_webhooks=send_dc_webhooks,
+                rewrite_graphed_rounds=rewrite_graphed_rounds,
+                strict=strict,
+                output_type=output_type
             )
-            for demo in demo_pathnames
-        ]
-        await asyncio.gather(*tasks)
+    else:
+        # Create a multiprocessing queue for communication with the monitor
+        manager = mp.Manager()
+        queue = manager.Queue()
+        # Launch the monitor process
+        # Process terminates when "None" is retrieved from Queue
+        monitor = mp.Process(target=progress_monitor, args=(queue, total_map))
+        monitor.start()
+        # Create a ProcessPoolExecutor with the desired number of workers
+        with ProcessPoolExecutor(max_workers=batch_size) as executor:
 
-    queue.put(None)
-    monitor.join()
+            # Submit all tasks to the executor
+            futures = [
+                executor.submit(
+                    functools.partial(
+                        process_single_demo,
+                        demo,
+                        queue,
+                        demo,
+                        send_dc_webhooks=send_dc_webhooks,
+                        rewrite_graphed_rounds=rewrite_graphed_rounds,
+                        strict=strict,
+                        output_type=output_type,
+                    )
+                )
+                for demo in demo_pathnames
+            ]
+
+            # Process the completed tasks
+            for future in as_completed(futures):
+                try:
+                    result = future.result()  # Get the task result (if returned)
+                    print(f"Task completed with result: {result}")  # Optional: Process the result
+                except Exception as e:
+                    print(f"Task failed with error: {e}")  # Handle errors appropriately
+
+        # Signal task completion to the queue and join the monitor
+        queue.put(None)
+        monitor.join()
 
 
-parser = argparse.ArgumentParser(description="Process CS:GO demo graphs.")
-# action is inverted, because absence of flag yes/no
-parser.add_argument(
-    "-no-dc-webhooks",
-    action="store_false",
-    help="Disable Discord webhook progress updates (default: True)",
-)
-parser.add_argument(
-    "-rewrite-graphed-rounds",
-    action="store_true",
-    help="Rewrite rounds even if graph files already exist (default: False)",
-)
-
-parser.add_argument(
-    "-strict",
-    action="store_true",
-    help="Raise an error if a frame is invalid (default: False)",
-)
-args = parser.parse_args()
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Process CS:GO demo graphs.")
+    # action is inverted, because absence of flag yes/no
+    parser.add_argument("--no-dc-webhooks", action="store_false",
+                        help="Disable Discord webhook progress updates (default: True)")
+    parser.add_argument("--rewrite-graphed-rounds", action="store_true",
+        help="Rewrite rounds even if graph files already exist (default: False)")
+    parser.add_argument("--strict", action="store_true",
+                        help="Raise an error if a frame is invalid (default: False)")
+
+    parser.add_argument("--sync", action="store_true",
+                        help="Raise an error if a frame is invalid (default: False)")
+    args = parser.parse_args()
+
     print("Starting graph creation...")
     print(f"Arguments: {args}")
 
-    asyncio.run(
-        main(
-            send_dc_webhooks=not args.no_dc_webhooks,
-            rewrite_graphed_rounds=args.rewrite_graphed_rounds,
-            strict=args.strict,
-        )
-    )
+    main(send_dc_webhooks=not args.no_dc_webhooks,
+        rewrite_graphed_rounds=args.rewrite_graphed_rounds,
+        strict=args.strict,
+        sync=args.sync)

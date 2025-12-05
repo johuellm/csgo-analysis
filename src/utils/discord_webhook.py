@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import os
 
@@ -8,27 +7,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# add this so that the script is aligned with create_graphs.py
-parser = argparse.ArgumentParser(description="Process CS:GO demo graphs.")
-parser.add_argument(
-    "-no-dc-webhooks",
-    action="store_true",
-    help="Disable Discord webhook progress updates (default: False)",
-)
-args = parser.parse_args()
 
 
-WEBHOOK_URL = (
-    os.environ.get("TESTING_WEBHOOK_URL")
-    if os.environ.get("ENVIRONMENT") == "local"
-    else os.environ.get("LIVE_WEBHOOK_URL")
-)
+WEBHOOK_URL = (os.environ.get("TESTING_WEBHOOK_URL")
+               if os.environ.get("ENVIRONMENT") == "local"
+               else os.environ.get("LIVE_WEBHOOK_URL"))
 
-if not args.no_dc_webhooks and not WEBHOOK_URL:
-    raise ValueError(
-        "❌ WEBHOOK_URL is not set. Please check your .env file and environment variables."
-    )
-
+def check_webook_url():
+    if not WEBHOOK_URL:
+        raise ValueError("❌ WEBHOOK_URL is not set. Please check your .env file and environment variables.")
 
 async def send_progress_embed(
     progress: float,
@@ -63,6 +50,7 @@ async def send_progress_embed(
         url="https://as2.ftcdn.net/jpg/05/56/17/61/1000_F_556176185_wmiwJtRkwDEs73iWgGuY0vugaZtV0AzD.jpg"
     )  # Replace with the URL of the thumbnail image
     async with aiohttp.ClientSession() as session:
+        check_webook_url()
         webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(
             embed=embed,
@@ -81,7 +69,7 @@ async def send_progress_embed(
 
 
 # Send an error embed to Discord
-async def send_error_embed(error_message: str, id: str, sendSilent=False, logger=None):
+async def send_error_embed(error_message: str, id: str,  sendSilent=False, logger=None):
     embed = discord.Embed(
         title="❌ Error Creating Match Graphs",
         description=error_message,
@@ -93,6 +81,7 @@ async def send_error_embed(error_message: str, id: str, sendSilent=False, logger
     )
     embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/5368/5368327.png")
     async with aiohttp.ClientSession() as session:
+        check_webook_url()
         webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(embed=embed, silent=sendSilent, username="Graph Updates")
 
@@ -115,6 +104,7 @@ async def send_warning_embed(
     embed.url = "https://example.com/details"  # Optional: link to logs or further info
     embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/1538/1538491.png")
     async with aiohttp.ClientSession() as session:
+        check_webook_url()
         webhook = discord.Webhook.from_url(WEBHOOK_URL, session=session)
         await webhook.send(embed=embed, silent=sendSilent, username="Graph Updates")
     if logger:
