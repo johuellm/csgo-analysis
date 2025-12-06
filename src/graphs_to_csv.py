@@ -14,8 +14,14 @@ KEYS_ROUND_LEVEL = (
   "bombPlanted",
   "tFreezeTimeEndEqVal",
   "tRoundSpendMoney",
-  "tactic_used"   # WARNING, older graph files have strategy_used, newer graph files have tactic_used
+  "roundNum",
+  "isWarmup",
+  "winningSide",
+  "losingTeam",
+  "tRoundStartEqVal",
+  "tactic_used"   # WARNING: older graph files have strategy_used, newer graph files have tactic_used
 )
+
 KEYS_PLAYER_LEVEL = (
   "x",
   "y",
@@ -88,7 +94,7 @@ def main():
   output_name = "output.csv"
   try:
     with open(output_name, "w", newline="", encoding="utf-8") as f_out:
-      print(f"Writing output to {output_name} in {graphs_folder}")
+      print(f"Writing output to {output_name} from {graphs_folder}")
       writer = csv.writer(f_out)
       writer.writerow(CSV_HEADERS)
       pkl_files = list(graphs_folder.rglob("*.pkl")) # for len
@@ -115,7 +121,7 @@ def main():
 def main_onlyprint():
   graphs_folder = Path(os.environ.get("GRAPHS_OUTPUT_DIR"))
   output_name = "output.csv"
-  print(f"Writing output to {output_name} in {graphs_folder}")
+  print(f"Writing output to {output_name} from {graphs_folder}")
   pkl_files = list(graphs_folder.rglob("*.pkl")) # for len
   len_pkl_files = len(pkl_files)
   for idx, pkl_file in enumerate(pkl_files):

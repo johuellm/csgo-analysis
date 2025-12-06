@@ -31,7 +31,7 @@ for handler in logging.root.handlers[:]:
 
 # Set root level to WARNING or higher (to suppress DEBUG logs)
 # TODO: change to environment variable
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 logging.getLogger("discord").setLevel(logging.CRITICAL)
 logging.getLogger("discord.webhook.async_").setLevel(logging.CRITICAL)
