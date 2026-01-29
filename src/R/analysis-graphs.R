@@ -8,6 +8,7 @@
 #'
 
 library(dplyr)
+library(ggplot2)
 
 main <- function() {
 
@@ -29,6 +30,8 @@ main <- function() {
   df <- load.data("data/all-frames.csv")
   df <- preprocess.data(df)
 
+  describe.data(df)
+
   analyse.tick.level(df)
   analyse.round.level(df)
   analyse.sequence.level(df)
@@ -42,6 +45,15 @@ main <- function() {
 
 
 
+
+describe.data(df) <- function(df) {
+
+  nrow(df)
+  length(unique(df$demoName))
+  df %>% group_by(demoName) %>% summarize(n=n_distinct(roundIdx),n()) %>% rename("Rounds" = n, "Observations" = `n()`)
+  unique(df$losingTeam)
+  plot(df$tactic_used)
+}
 
 
 
