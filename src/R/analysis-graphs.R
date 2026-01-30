@@ -46,7 +46,7 @@ main <- function() {
 
 
 
-describe.data(df) <- function(df) {
+describe.data <- function(df) {
 
   nrow(df)
   length(unique(df$demoName))
