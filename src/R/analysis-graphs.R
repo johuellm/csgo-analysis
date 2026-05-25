@@ -12,12 +12,17 @@ library(tidyr)
 library(fixest)
 library(ggplot2)
 library(stargazer)
+library(MatchIt)
+library(did)
+
 
 main <- function() {
 
 
   # TODO:
+  #  - roundlength on tick-level analysis as control
   # dependent variables:
+  #  - identify relevant covariates for matching
   #  - distance bomb to bombspot (done)
   #  - roundWin (done)
   #  - DamageTaken (done)
@@ -25,7 +30,7 @@ main <- function() {
   #  - diff-in-diff for tactics after shock
   #    a) basic analysis inconclusive
   #    b) check more in detail which specific tactic change might be useful
-  #  - DamageInflicted
+  #  - DamageInflicted / other team totalHP
   #  - areaControl
   # nice timeseries visuals
 
@@ -99,10 +104,12 @@ analyse.diffindiff <- function(df) {
     mutate(
       post_event = ifelse(!is.na(event_time) & seconds >= event_time, 1, 0),
       time_since_event = seconds - event_time,              # negative = before
-      time_since_event = replace_na(time_since_event, -9999) # in rounds w/out event
+#      time_since_event = replace_na(time_since_event, -9999) # in rounds w/out event
+      time_since_event = replace_na(time_since_event, NA) # in rounds w/out event
     )
 
   # filter rounds without adverse event
+  ## TODO: PUT N/A INSTEAD ?!
   df.mutated <- df.mutated %>% filter(time_since_event != -9999)
 
   #  Treatment indicator (teams changing tactic)
@@ -129,44 +136,40 @@ analyse.diffindiff <- function(df) {
 
 
 
-  fit <- feols(
+  # (A) Simple Diff-in-Diff
+  fit1 <- feols(
     distBombplace ~ post_event * changed_tactic | demoName + roundIdx,
     cluster = ~demoName,
     data = df.mutated
   )
-  summary(fit)
+  summary(fit1)
 
-  fit <- feols(
+  fit2 <- feols(
     distBombplace ~ post_event * changed_tactic + seconds | demoName + roundIdx,
     cluster = ~demoName,
     data = df.mutated
   )
-  summary(fit)
+  summary(fit2)
 
 
+  # (B) Continous / Spline Diff-in-Diff
   #Run DiD with a continuous smooth of time_since_event
-  fit <- feols(
-    #distBombplace ~ post_event * changed_tactic + ns(time_since_event, df = 5) * changed_tactic | demoName + roundIdx,
-    distBombplace ~ post_event * changed_tactic + time_since_event | demoName + roundIdx,
+  fit3 <- feols(
+    distBombplace ~ post_event * changed_tactic + time_since_event * changed_tactic | demoName + roundIdx,
     cluster = ~demoName,
     data = df.mutated
   )
-  summary(fit, cluster = "demoName")
+  summary(fit3, cluster = "demoName")
 
-  fit <- feols(
-    distBombplace ~ post_event * changed_tactic + time_since_event | demoName + roundIdx,
-    #distBombplace ~ post_event * changed_tactic + time_since_event | demoName + roundIdx,
+  fit4 <- feols(
+    distBombplace ~ post_event * changed_tactic + ns(time_since_event, df = 5) * changed_tactic | demoName + roundIdx,
     cluster = ~demoName,
     data = df.mutated
   )
-  summary(fit, cluster = "demoName")
+  summary(fit4, cluster = "demoName")
 
-  fit <- feols(
-    distBombplace ~ i(time_since_event, post_event, ref = -1) | demoName + roundIdx,
-    cluster = ~demoName,
-    data = df.mutated
-  )
-  summary(fit, cluster = "demoName")
+  library(modelsummary)
+  modelsummary(list(fit1,fit2,fit3,fit4), output="markdown", dfmt=fmt_decimal(), estimate="{estimate}{stars}")
 
 
 
@@ -177,15 +180,19 @@ analyse.diffindiff <- function(df) {
   # Using 10-second bins → ~9 bins per round
   # For an event study, 1-second bins are probably too fine-grained and noisy.
   
-  # Uncapped bins
+  # (A) Uncapped bins
   df.mutated <- df.mutated %>%
    mutate(time_rounded = round(time_since_event)
   )
 
-  # Capped bins
+  # (B) Capped bins (better!)
+  bin_size <- 1
+  #bin_size <- 5
+  ref_point = bin_size * -1
+
   df.mutated <- df.mutated %>%
     mutate(
-      time_rounded = floor(time_since_event / 5) * 5,
+      time_rounded = floor(time_since_event / bin_size) * bin_size,
       time_rounded = pmax(pmin(time_rounded, 30), -30)
     )
 
@@ -194,27 +201,48 @@ analyse.diffindiff <- function(df) {
   # Parallel Trends Check
 
   # plot against constant baseline
-  fit <- feols(
-    distBombplace ~ i(time_rounded, changed_tactic, ref = -5) + dplyr::lag(distBombplace, 2) | demoName + roundIdx,
+  fit1 <- feols(
+    distBombplace ~ i(time_rounded, changed_tactic, ref = ref_point) | demoName + roundIdx,
     cluster = ~demoName,
     data = df.mutated
   )
-  summary(fit)
-  iplot(fit)
+  summary(fit1)
+  iplot(fit1)
+
+  # with lag
+  fit2 <- feols(
+    distBombplace ~ i(time_rounded, changed_tactic, ref = ref_point) + dplyr::lag(distBombplace, 1) | demoName + roundIdx,
+    cluster = ~demoName,
+    data = df.mutated
+  )
+  summary(fit2)
+  iplot(fit2)
 
 
-  # plot with trajectories
-  fit <- feols(
-    distBombplace ~ i(time_rounded, changed_tactic, ref = -1) +
-     i(time_rounded) | demoName,
+  # plot with trajectories, control for average time effects
+  # (this seems to be best-performing; still bad, though)
+  fit3 <- feols(
+    distBombplace ~ i(time_rounded, changed_tactic, ref = ref_point) + i(time_rounded) | demoName + roundIdx,
   cluster = ~demoName,
   data = df.mutated)
-  summary(fit)
-  iplot(fit)
+  summary(fit3)
+  iplot(fit3, main="Effect on Distance Bombplace Diff", xlab="Relative Time")
+
+  # with lag, plot with trajectories, control for average time effects
+  fit4 <- feols(
+    distBombplace ~ i(time_rounded, changed_tactic, ref = ref_point) + i(time_rounded) + dplyr::lag(distBombplace, 1) | demoName + roundIdx,
+    cluster = ~demoName,
+    data = df.mutated
+  )
+  summary(fit4)
+  iplot(fit4)
 
 
-  # plot 2 lines
-  time_grid <- seq(-30, 60, by = 1)
+  modelsummary(list(fit1,fit2,fit3,fit4), output="markdown", dfmt=fmt_decimal(), estimate="{estimate}{stars}")
+
+
+  # plot 2 lines; use fit3; assumes 
+  time_grid <- seq(-30, 30, by = bin_size)
   newdata <- expand.grid(
     time_rounded = time_grid,
     changed_tactic = c(0, 1),
@@ -222,13 +250,13 @@ analyse.diffindiff <- function(df) {
     roundIdx= df.mutated$roundIdx[1],
     demoName= df.mutated$demoName[1]
   )
-  newdata$pred <- predict(fit, newdata)
+  newdata$pred <- predict(fit3, newdata)
 
   ggplot(newdata, aes(x = time_rounded,
                     y = pred,
                     color = factor(changed_tactic))) +
   geom_line(size = 1.2) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+  geom_vline(xintercept = ref_point, linetype = "dashed", color = "gray40") +
   labs(
     color = "Changed tactic",
     x = "Seconds relative to adverse event",
@@ -241,9 +269,137 @@ analyse.diffindiff <- function(df) {
 
 
 
+  # Matching on pre-trends
+
+  # (A) Match on pre-period outcomes
+  pre_wide <- df.mutated %>%
+    filter(time_rounded < 0) %>%
+    group_by(demoName, roundIdx, time_rounded) %>%
+    summarise(
+      dist_pre = mean(distBombplace, na.rm = TRUE),
+      changed_tactic_unit = max(changed_tactic, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(time_name = paste0("dist_t_", abs(time_rounded))) %>%
+    select(demoName, roundIdx, changed_tactic_unit, time_name, dist_pre) %>%
+    pivot_wider(
+      names_from = time_name,
+      values_from = dist_pre
+    )
+
+  pre_covars <- paste0("dist_t_", abs(seq(-30, ref_point, by = bin_size)))
+  match_formula <- reformulate(
+    termlabels = pre_covars,
+    response = "changed_tactic_unit"
+  )
+
+  m.out <- matchit(
+    formula = match_formula,
+    data = pre_wide,
+    method = "nearest",
+    distance = "mahalanobis"
+  )
+
+  summary(m.out)
 
 
 
+  # (B) Match on trend summaries (typically used)
+  pre_features <- df.mutated %>%
+    filter(time_rounded < 0) %>%
+    group_by(demoName, roundIdx) %>%
+    summarise(
+      changed_tactic_unit = max(changed_tactic, na.rm = TRUE),
+      pre_mean = mean(distBombplace, na.rm = TRUE),
+      pre_last = mean(distBombplace[time_rounded == ref_point], na.rm = TRUE),
+      pre_slope = coef(lm(distBombplace ~ time_rounded))[2],
+    .groups = "drop"
+  )
+
+  m.out <- matchit(
+    changed_tactic_unit ~ pre_mean + pre_last + pre_slope,
+    data = pre_features,
+    method = "nearest",
+    distance = "mahalanobis")
+
+  summary(m.out)
+
+
+
+  # Match units
+  matched_units <- match.data(m.out)
+
+  df.matched <- df.mutated %>%
+  inner_join(
+    matched_units %>% select(demoName, roundIdx, weights),
+    by = c("demoName","roundIdx")
+  )
+
+
+
+  # Visualize pre-trends
+  df.check <- df.matched %>%
+    filter(time_rounded < 0) %>%
+    group_by(changed_tactic, time_rounded) %>%
+    summarise(
+      mean_dist = weighted.mean(distBombplace, weights, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  ggplot(df.check, aes(x = time_rounded, y = mean_dist, color = factor(changed_tactic))) +
+    geom_line(size = 1.2) +
+    geom_point() +
+    labs(
+      color = "Changed tactic",
+      x = "Time rounded",
+      y = "Mean distBombplace",
+      title = "Matched pre-trends"
+    ) +
+    theme_minimal()
+
+
+
+  # Run matched Diff-in-diff
+  fit_matched <- feols(
+    distBombplace ~ i(time_rounded, changed_tactic, ref = ref_point) + i(time_rounded) | demoName + roundIdx,
+    cluster = ~ demoName,
+    weights = ~ weights,
+    data = df.matched
+  )
+
+  summary(fit_matched)
+  iplot(fit_matched)
+
+
+
+
+
+
+
+
+
+
+
+  # TODO: Use `did` package with newer estimators
+
+  att <- att_gt(
+    yname = "event_next",
+    tname = "t",
+    idname = "match_id",
+    gname = "treat_start",
+    xformla = ~ score_diff + home + red_card + possession + team_strength,
+    data = df_haz,
+    panel = TRUE,
+    control_group = "notyettreated"
+  )
+
+  es <- aggte(att, type = "dynamic")
+  summary(es)
+  plot(es)
+
+
+
+  # discrete event hazard model
 
 
   #### Smooth function over the whole support — no explicit post_event
@@ -334,12 +490,17 @@ analyse.sequence.level <- function(df) {
 
 
   ## (b) BOMB DISTANCE DIFFERENCE
-  fit <- lm(distBombplaceDiff ~ demoName + roundIdx + slice + hpDiff + tRoundSpendMoney + tFreezeTimeEndEqVal + tacticLast, data=df.sliced)
-  summary(fit)
+  fit1 <- lm(distBombplaceDiff ~ slice + tacticLast, data=df.sliced)
+  fit2 <- lm(distBombplaceDiff ~ slice + hpDiff + tRoundSpendMoney + tFreezeTimeEndEqVal + tacticLast, data=df.sliced)
+  fit3 <- lm(distBombplaceDiff ~ demoName + roundIdx + slice + hpDiff + tRoundSpendMoney + tFreezeTimeEndEqVal + tacticLast, data=df.sliced)
+  fit4 <- lm(distBombplaceDiff ~ demoName + roundIdx + slice + hpDiff + tRoundSpendMoney + tFreezeTimeEndEqVal + tacticLast + lag(distBombplaceDiff,1), data=df.sliced)
+  summary(fit3)
+  stargazer(fit1,fit2,fit3, fit4, type="text", digits=3, digits.extra=0)
+
 
   par(mar = c(10, 4.1, 4.1, 2.1) + 0.1)
   plot(df.sliced$tacticLast, df.sliced$distBombplaceDiff, las = 2)
-  lines(predict(fit,
+  lines(predict(fit3,
         newdata = data.frame(
             tacticLast = factor(levels(df.sliced$tacticLast), levels = levels(df.sliced$tacticLast)),
             demoName = df.sliced$demoName[1],
@@ -477,7 +638,7 @@ analyse.tick.level <- function(df) {
       as.data.frame()
   fit3 <- glm(winningSide ~ tRoundSpendMoney + tFreezeTimeEndEqVal + tactic_used + totalHp + distBombplace, data=df.grouped, family=binomial)
   fit4 <- glm(winningSide ~ demoName + roundIdx + tRoundSpendMoney + tFreezeTimeEndEqVal + tactic_used + totalHp + distBombplace, data=df.grouped, family=binomial)
-  stargazer(fit1,fit2,fit3,fit4)
+  stargazer(fit1,fit2,fit3,fit4, type="text", digits=3, digits.extra=0)
 }
 
 
@@ -499,15 +660,15 @@ analyse.round.level <- function(df) {
   df.grouped <- as.data.frame(df.grouped)
 
   # Everything matters, except number of tactics for roundwin
-  fit <- glm(as.numeric(winningSide) ~ tactics + totalHp + distBombplace + equipmentVal, data=df.grouped, family=binomial)
+  fit1 <- glm(as.numeric(winningSide) ~ tactics + totalHp + distBombplace + equipmentVal, data=df.grouped, family=binomial)
   summary(fit)
-  fit <- glm(as.numeric(winningSide) ~ tactics + I(tactics^2) + totalHp + distBombplace + equipmentVal, data=df.grouped, family=binomial)
+  fit2 <- glm(as.numeric(winningSide) ~ tactics + I(tactics^2) + totalHp + distBombplace + equipmentVal, data=df.grouped, family=binomial)
   summary(fit)
-  fit <- glm(as.numeric(winningSide) ~ tactics + I(1/tactics) + totalHp + distBombplace + equipmentVal, data=df.grouped, family=binomial)
+  fit3 <- glm(as.numeric(winningSide) ~ tactics + I(1/tactics) + totalHp + distBombplace + equipmentVal, data=df.grouped, family=binomial)
   summary(fit)
 
   # stargazer
-  stargazer(fit1,fit2,fit3)
+  stargazer(fit1,fit2,fit3, type="text", digits=3, digits.extra=0)
 
   # Explanation can be seen visually:
   data_counted <- df.grouped %>% group_by(winningSide, tactics) %>% summarize(count = n()) %>% ungroup()
@@ -517,7 +678,7 @@ analyse.round.level <- function(df) {
     geom_point(alpha = 0.7) +  # Transparency for better visualization
     scale_size_continuous(range = c(2, 10)) +  # Scale the point sizes
     scale_x_continuous(breaks = 1:7) +
-    labs(size = "Count", title = "Scatterplot with Point Sizes Based on Count") +
+    labs(size = "Frequency", title = "Scatterplot with Point Sizes Based on Count", x="Tactic Count", y="Winning Side") +
     theme_minimal()
 
 
@@ -529,8 +690,8 @@ analyse.round.level <- function(df) {
   summary(fit2)
   fit3 <- lm(distBombplace ~ tactics + I(tactics^2) + totalHp + equipmentVal, data=df.grouped)
   summary(fit3)
-  stargazer(fit1,fit2,fit3)
-  plot(df.grouped$tactics, df.grouped$distBombplace)
+  stargazer(fit1,fit2,fit3, type="text", digits=3, digits.extra=0)
+  plot(df.grouped$tactics, df.grouped$distBombplace, xlab="Tactic Count", ylab="Distance Bombplace")
   curve(predict(fit3,
     newdata = data.frame(tactics = x, totalHp = mean(df.grouped$totalHp), equipmentVal = mean(df.grouped$equipmentVal))),
     col = "red", lwd = 2, add = TRUE)
@@ -542,7 +703,7 @@ analyse.round.level <- function(df) {
   summary(fit2)
   fit3 <- lm(totalHp ~ tactics + I(tactics^2) + distBombplace + equipmentVal, data=df.grouped)
   summary(fit3)
-  stargazer(fit1,fit2,fit3)
+  stargazer(fit1,fit2,fit3, type="text", digits=3, digits.extra=0)
   plot(df.grouped$tactics, df.grouped$totalHp)
   curve(predict(fit3,
     newdata = data.frame(tactics = x, distBombplace = mean(df.grouped$distBombplace), equipmentVal = mean(df.grouped$equipmentVal))),
@@ -562,7 +723,8 @@ analyse.round.level <- function(df) {
       equipmentVal = first(tFreezeTimeEndEqVal)
     ) %>% as.data.frame()
   
-  summary(lm(as.numeric(winningSide) ~ tactic + equipmentVal + demoName + roundIdx, data = df.grouped))
+  fit1 <- lm(as.numeric(winningSide) ~ tactic + equipmentVal + demoName + roundIdx, data = df.grouped)
+  summary(fit1)
 
 
   ## only lastTactic and roundWin
@@ -572,8 +734,10 @@ analyse.round.level <- function(df) {
       winningSide = last(winningSide) == "T",
       equipmentVal = first(tFreezeTimeEndEqVal)
     ) %>% as.data.frame()
-  
-  summary(lm(as.numeric(winningSide) ~ tactic + equipmentVal + demoName + roundIdx, data = df.grouped))
+  fit2 <- lm(as.numeric(winningSide) ~ tactic + equipmentVal + demoName + roundIdx, data = df.grouped)
+  summary(fit2)
+
+  stargazer(fit1,fit2, type="text", digits=3, digits.extra=0)
 }
 
 
